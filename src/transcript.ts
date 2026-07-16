@@ -31,7 +31,7 @@ export async function parseTranscript(
   seenMessageIds: Set<string> = new Set(),
   seenToolIds: Set<string> = new Set(),
 ): Promise<SessionStats> {
-  const stats: SessionStats = { file, usageByModel: {}, toolCalls: {} };
+  const stats: SessionStats = { file, usageByModel: {}, toolCalls: {}, dailyUsage: {} };
   const rl = createInterface({ input: createReadStream(file, "utf8"), crlfDelay: Infinity });
 
   for await (const line of rl) {
@@ -53,13 +53,20 @@ export async function parseTranscript(
     const model = message.model ?? "unknown";
     const firstSeen = !message.id || !seenMessageIds.has(message.id);
     if (message.id) seenMessageIds.add(message.id);
-    if (message.usage && firstSeen) {
-      const u = (stats.usageByModel[model] ??= emptyUsage());
-      u.inputTokens += message.usage.input_tokens;
-      u.cacheCreationTokens += message.usage.cache_creation_input_tokens;
-      u.cacheReadTokens += message.usage.cache_read_input_tokens;
-      u.outputTokens += message.usage.output_tokens;
-      u.turns += 1;
+    // "<synthetic>" marks Claude Code-injected placeholder turns with no real usage.
+    if (message.usage && firstSeen && model !== "<synthetic>") {
+      const accs = [(stats.usageByModel[model] ??= emptyUsage())];
+      if (timestamp) {
+        const day = (stats.dailyUsage[timestamp.slice(0, 10)] ??= {});
+        accs.push((day[model] ??= emptyUsage()));
+      }
+      for (const u of accs) {
+        u.inputTokens += message.usage.input_tokens;
+        u.cacheCreationTokens += message.usage.cache_creation_input_tokens;
+        u.cacheReadTokens += message.usage.cache_read_input_tokens;
+        u.outputTokens += message.usage.output_tokens;
+        u.turns += 1;
+      }
     }
     for (const block of message.content ?? []) {
       if (block.type !== "tool_use" || !block.name) continue;

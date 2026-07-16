@@ -1,6 +1,6 @@
 import Table from "cli-table3";
 import pc from "picocolors";
-import { usd, tok } from "./format.js";
+import { usd, tok, pct1 } from "./format.js";
 import type { AuditReport } from "./types.js";
 
 export function renderReport(report: AuditReport): string {
@@ -21,6 +21,9 @@ export function renderReport(report: AuditReport): string {
       "Cost = what these tokens would bill at Anthropic API pay-as-you-go rates. " +
         "On a Pro/Max subscription you pay a flat fee, not this — treat it as value received, not a bill.",
     ),
+  );
+  parts.push(
+    `Cache hit rate ${pct1(report.cacheHitRate)} — prompt caching saved ${usd(report.cacheSavingsUsd)} vs uncached input pricing.`,
   );
 
   const costTable = new Table({ head: ["Model", "Input", "Cache read", "Cache write", "Output", "Cost"] });

@@ -2,12 +2,12 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, relative, sep } from "node:path";
 import { glob } from "tinyglobby";
-import { buildReport } from "./attribute.js";
+import { addUsage, buildReport, cacheHitRate, cacheSavings } from "./attribute.js";
 import { sanitizeProjectPath } from "./discover.js";
 import { findMcpServers } from "./mcp.js";
 import { costUsd, emptyUsage } from "./pricing.js";
 import { parseTranscript } from "./transcript.js";
-import type { AuditReport, CostBreakdown, ServerAudit, UsageTotals } from "./types.js";
+import type { AuditReport, CostBreakdown, DailyStat, ServerAudit, UsageTotals } from "./types.js";
 
 export interface ProjectAudit {
   id: string;
@@ -24,19 +24,18 @@ export function aggregate(projects: ProjectAudit[]): AuditReport {
   const toolCalls: Record<string, number> = {};
   const servers: ServerAudit[] = [];
   const seenServer = new Set<string>();
+  const dailyByDate = new Map<string, DailyStat>();
+  const sessions: AuditReport["sessions"] = [];
   let sessionCount = 0;
+  let totalTurns = 0;
   let start: string | undefined;
   let end: string | undefined;
 
   for (const { report } of projects) {
     sessionCount += report.sessionCount;
+    totalTurns += report.totalTurns ?? 0;
     for (const [m, u] of Object.entries(report.usageByModel)) {
-      const acc = (usageByModel[m] ??= emptyUsage());
-      acc.inputTokens += u.inputTokens;
-      acc.cacheReadTokens += u.cacheReadTokens;
-      acc.cacheCreationTokens += u.cacheCreationTokens;
-      acc.outputTokens += u.outputTokens;
-      acc.turns += u.turns;
+      addUsage((usageByModel[m] ??= emptyUsage()), u);
     }
     for (const [t, n] of Object.entries(report.toolCalls)) toolCalls[t] = (toolCalls[t] ?? 0) + n;
     for (const s of report.servers) {
@@ -45,6 +44,20 @@ export function aggregate(projects: ProjectAudit[]): AuditReport {
         servers.push({ ...s });
       }
     }
+    for (const d of report.daily ?? []) {
+      const acc = dailyByDate.get(d.date);
+      if (!acc) {
+        dailyByDate.set(d.date, { ...d });
+      } else {
+        acc.costUsd += d.costUsd;
+        acc.inputTokens += d.inputTokens;
+        acc.cacheReadTokens += d.cacheReadTokens;
+        acc.cacheCreationTokens += d.cacheCreationTokens;
+        acc.outputTokens += d.outputTokens;
+        acc.turns += d.turns;
+      }
+    }
+    sessions.push(...(report.sessions ?? []));
     if (report.spanStart && (!start || report.spanStart < start)) start = report.spanStart;
     if (report.spanEnd && (!end || report.spanEnd > end)) end = report.spanEnd;
   }
@@ -70,6 +83,11 @@ export function aggregate(projects: ProjectAudit[]): AuditReport {
     monthlyProjectionUsd: (totalCostUsd / spanDays) * 30,
     toolCalls,
     servers,
+    daily: [...dailyByDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1)),
+    sessions: sessions.sort((a, b) => b.costUsd - a.costUsd),
+    cacheSavingsUsd: cacheSavings(usageByModel),
+    cacheHitRate: cacheHitRate(usageByModel),
+    totalTurns,
   };
 }
 
@@ -87,7 +105,16 @@ async function realPathsBySanitized(home: string): Promise<Map<string, string>> 
   return map;
 }
 
-export async function loadProjects(home: string = homedir()): Promise<ProjectAudit[]> {
+export interface LoadProgress {
+  parsed: number;
+  total: number;
+  currentProject?: string;
+}
+
+export async function loadProjects(
+  home: string = homedir(),
+  onProgress?: (p: LoadProgress) => void,
+): Promise<ProjectAudit[]> {
   const root = join(home, ".claude", "projects");
   const files = await glob(["**/*.jsonl"], { cwd: root, absolute: true }).catch(() => []);
   if (files.length === 0) return [];
@@ -103,13 +130,18 @@ export async function loadProjects(home: string = homedir()): Promise<ProjectAud
   const realMap = await realPathsBySanitized(home);
   const seenMessageIds = new Set<string>();
   const seenToolIds = new Set<string>();
+  let parsed = 0;
 
   const out: ProjectAudit[] = [];
   for (const [dir, dirFiles] of byDir) {
-    const sessions = await Promise.all(
-      dirFiles.map((f) => parseTranscript(f, seenMessageIds, seenToolIds)),
-    );
     const realPath = realMap.get(dir);
+    onProgress?.({ parsed, total: files.length, currentProject: realPath ?? dir });
+    const sessions = [];
+    for (const f of dirFiles) {
+      sessions.push(await parseTranscript(f, seenMessageIds, seenToolIds));
+      parsed += 1;
+      onProgress?.({ parsed, total: files.length, currentProject: realPath ?? dir });
+    }
     const servers = realPath ? await findMcpServers(realPath, home) : [];
     out.push({ id: dir, name: realPath ?? dir, realPath, report: buildReport(sessions, servers) });
   }

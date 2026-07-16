@@ -1,18 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import type { ProjectAudit } from "../projects.js";
 import { aggregate } from "../projects.js";
 import { Menu, type MenuAction } from "./Menu.js";
 import { ProjectList } from "./ProjectList.js";
 import { Dashboard } from "./Dashboard.js";
+import { HelpOverlay } from "./HelpOverlay.js";
 
 export type View = "menu" | "list" | "project" | "aggregate";
 
 const HINTS: Record<View, string> = {
-  menu: "↑↓ navigate · ⏎ select · q quit",
-  list: "↑↓ navigate · ⏎ open · esc back · q quit",
-  project: "1–4 switch tab · esc back · q quit",
-  aggregate: "1–4 switch tab · esc back · q quit",
+  menu: "↑↓ navigate · ⏎ select · ? help · q quit",
+  list: "↑↓ navigate · ⏎ open · / filter · s sort · esc back · ? help · q quit",
+  project: "1–6 or ←→ switch tab · esc back · ? help · q quit",
+  aggregate: "1–6 or ←→ switch tab · esc back · ? help · q quit",
 };
 
 export function App({
@@ -26,10 +27,20 @@ export function App({
 }) {
   const { exit } = useApp();
   const [view, setView] = useState<View>(initialView);
-  const [selected, setSelected] = useState(initialSelected);
+  const [selected, setSelected] = useState<ProjectAudit | undefined>(projects[initialSelected]);
+  const [help, setHelp] = useState(false);
+  const [filterCapture, setFilterCapture] = useState(false);
+  const totals = useMemo(() => aggregate(projects), [projects]);
 
   useInput((input, key) => {
+    if (help) {
+      setHelp(false);
+      return;
+    }
+    // While the list's filter input is live, don't steal its keystrokes.
+    if (filterCapture) return;
     if (input === "q") exit();
+    if (input === "?") setHelp(true);
     if (key.escape) {
       if (view === "project") setView("list");
       else if (view === "list" || view === "aggregate") setView("menu");
@@ -39,10 +50,13 @@ export function App({
   if (projects.length === 0) return <Text>No Claude Code transcripts found.</Text>;
 
   let content: React.ReactNode;
-  if (view === "menu") {
+  if (help) {
+    content = <HelpOverlay />;
+  } else if (view === "menu") {
     content = (
       <Menu
         projects={projects}
+        totals={totals}
         onSelect={(action: MenuAction) => {
           if (action === "quit") exit();
           else setView(action);
@@ -50,17 +64,18 @@ export function App({
       />
     );
   } else if (view === "aggregate") {
-    content = <Dashboard project={{ id: "__all__", name: "All projects", report: aggregate(projects) }} />;
-  } else if (view === "project") {
-    content = <Dashboard project={projects[selected]} />;
+    content = <Dashboard project={{ id: "__all__", name: "All projects", report: totals }} />;
+  } else if (view === "project" && selected) {
+    content = <Dashboard project={selected} />;
   } else {
     content = (
       <ProjectList
         projects={projects}
-        onSelect={(i) => {
-          setSelected(i);
+        onSelect={(p) => {
+          setSelected(p);
           setView("project");
         }}
+        onFilteringChange={setFilterCapture}
       />
     );
   }
@@ -71,7 +86,7 @@ export function App({
         {content}
       </Box>
       <Box paddingX={1}>
-        <Text dimColor>{HINTS[view]}</Text>
+        <Text dimColor>{help ? "any key to close help" : HINTS[view]}</Text>
       </Box>
     </Box>
   );

@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { renderReport } from "../src/report.js";
 import type { AuditReport } from "../src/types.js";
+import { mkReport } from "./fixtures.js";
 
-const report: AuditReport = {
+const report: AuditReport = mkReport({
   sessionCount: 2,
   spanDays: 10,
   usageByModel: {
@@ -18,7 +19,7 @@ const report: AuditReport = {
     { name: "context7", source: "x", callsObserved: 2, unused: false },
     { name: "craftspace", source: "y", callsObserved: 0, unused: true },
   ],
-};
+});
 
 describe("renderReport", () => {
   it("includes headline cost, unused marker, and tool counts", () => {

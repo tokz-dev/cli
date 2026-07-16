@@ -51,20 +51,13 @@ program.action(async () => {
     console.log(renderReport(buildReport(sessions, [])));
     return;
   }
-  const { loadProjects } = await import("./projects.js");
-  const projects = await loadProjects();
-  if (projects.length === 0) {
-    console.error("No Claude Code transcripts found.");
-    process.exitCode = 1;
-    return;
-  }
-  const [{ render }, React, { App }, { Fullscreen }] = await Promise.all([
+  const [{ render }, React, { Root }, { Fullscreen }] = await Promise.all([
     import("ink"),
     import("react"),
-    import("./ui/App.js"),
+    import("./ui/Root.js"),
     import("./ui/Fullscreen.js"),
   ]);
-  render(React.createElement(Fullscreen, null, React.createElement(App, { projects })));
+  render(React.createElement(Fullscreen, null, React.createElement(Root)));
 });
 
 program.parseAsync();
