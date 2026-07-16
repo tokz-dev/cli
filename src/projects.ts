@@ -12,8 +12,15 @@ import type { AuditReport, CostBreakdown, DailyStat, ServerAudit, UsageTotals } 
 export interface ProjectAudit {
   id: string;
   name: string;
+  /** short display name: the project directory's basename */
+  label: string;
   realPath?: string;
   report: AuditReport;
+}
+
+export function baseName(p: string): string {
+  const parts = p.replace(/\\/g, "/").split("/").filter(Boolean);
+  return parts.at(-1) ?? p;
 }
 
 const DAY_MS = 86_400_000;
@@ -134,16 +141,23 @@ export async function loadProjects(
 
   const out: ProjectAudit[] = [];
   for (const [dir, dirFiles] of byDir) {
-    const realPath = realMap.get(dir);
-    onProgress?.({ parsed, total: files.length, currentProject: realPath ?? dir });
+    onProgress?.({ parsed, total: files.length, currentProject: realMap.get(dir) ?? dir });
     const sessions = [];
     for (const f of dirFiles) {
       sessions.push(await parseTranscript(f, seenMessageIds, seenToolIds));
       parsed += 1;
-      onProgress?.({ parsed, total: files.length, currentProject: realPath ?? dir });
+      onProgress?.({ parsed, total: files.length, currentProject: realMap.get(dir) ?? dir });
     }
+    // Prefer the config-mapped path; fall back to the cwd recorded inside the transcripts.
+    const realPath = realMap.get(dir) ?? sessions.find((s) => s.cwd)?.cwd;
     const servers = realPath ? await findMcpServers(realPath, home) : [];
-    out.push({ id: dir, name: realPath ?? dir, realPath, report: buildReport(sessions, servers) });
+    out.push({
+      id: dir,
+      name: realPath ?? dir,
+      label: realPath ? baseName(realPath) : dir,
+      realPath,
+      report: buildReport(sessions, servers),
+    });
   }
 
   out.sort((a, b) => b.report.totalCostUsd - a.report.totalCostUsd);

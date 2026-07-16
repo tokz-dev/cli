@@ -7,10 +7,11 @@ import { BarChart } from "./BarChart.js";
 import { Sparkline } from "./Sparkline.js";
 import { StatCards } from "./StatCards.js";
 import { theme, modelColor } from "./theme.js";
+import { useTerminalSize } from "./useTerminalSize.js";
 
 const TABS = ["Overview", "Models", "Tools", "Servers", "Sessions", "Activity"] as const;
 
-function TabBar({ tab }: { tab: number }) {
+function TabBar({ tab, narrow }: { tab: number; narrow: boolean }) {
   return (
     <Box marginBottom={1}>
       {TABS.map((t, i) => (
@@ -20,7 +21,7 @@ function TabBar({ tab }: { tab: number }) {
           backgroundColor={i === tab ? theme.accent : undefined}
           bold={i === tab}
         >
-          {` ${i + 1} ${t} `}
+          {narrow ? ` ${i + 1}${i === tab ? ` ${t}` : ""} ` : ` ${i + 1} ${t} `}
         </Text>
       ))}
     </Box>
@@ -51,7 +52,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Overview({ r }: { r: AuditReport }) {
+function Overview({ r, chartW }: { r: AuditReport; chartW: number }) {
   const days = lastDays(r, 30);
   const peak = days.reduce((a, b) => (b.costUsd > a.costUsd ? b : a), days[0]);
   const models = Object.entries(r.costByModel)
@@ -93,13 +94,13 @@ function Overview({ r }: { r: AuditReport }) {
 
       {models.length > 0 ? (
         <Section title="cost by model">
-          <BarChart rows={models} showShare />
+          <BarChart rows={models} width={chartW} showShare />
         </Section>
       ) : null}
 
       {tools.length > 0 ? (
         <Section title="top tools">
-          <BarChart rows={tools} />
+          <BarChart rows={tools} width={chartW} />
         </Section>
       ) : null}
 
@@ -112,22 +113,22 @@ function Overview({ r }: { r: AuditReport }) {
   );
 }
 
-function Models({ r }: { r: AuditReport }) {
+function Models({ r, cols }: { r: AuditReport; cols: number }) {
   const entries = Object.entries(r.usageByModel).sort(
     ([a], [b]) => r.costByModel[b].total - r.costByModel[a].total,
   );
   if (entries.length === 0) return <Text dimColor>no usage recorded</Text>;
   const nameW = Math.max(...entries.map(([m]) => shortModel(m).length), 5);
   const col = (s: string) => s.padStart(10);
+  // Narrow terminals: keep the columns that matter most.
+  const full = cols >= nameW + 2 + 10 * 6 + 7;
+  const mid = cols >= nameW + 2 + 10 * 3 + 7;
   return (
     <Box flexDirection="column">
       <Text dimColor>
         {"MODEL".padEnd(nameW + 2)}
-        {col("INPUT")}
-        {col("CACHE RD")}
-        {col("CACHE WR")}
-        {col("OUTPUT")}
-        {col("TURNS")}
+        {full ? col("INPUT") + col("CACHE RD") + col("CACHE WR") : ""}
+        {mid ? col("OUTPUT") + col("TURNS") : ""}
         {col("COST")}
         {"  SHARE"}
       </Text>
@@ -139,11 +140,8 @@ function Models({ r }: { r: AuditReport }) {
             <Text color={modelColor(m)} bold>
               {shortModel(m).padEnd(nameW + 2)}
             </Text>
-            {col(compact(u.inputTokens))}
-            {col(compact(u.cacheReadTokens))}
-            {col(compact(u.cacheCreationTokens))}
-            {col(compact(u.outputTokens))}
-            {col(compact(u.turns))}
+            {full ? col(compact(u.inputTokens)) + col(compact(u.cacheReadTokens)) + col(compact(u.cacheCreationTokens)) : ""}
+            {mid ? col(compact(u.outputTokens)) + col(compact(u.turns)) : ""}
             <Text bold>{col(usd(c.total))}</Text>
             <Text dimColor>{`  ${pct(share).padStart(4)}`}</Text>
           </Text>
@@ -161,7 +159,7 @@ function Models({ r }: { r: AuditReport }) {
   );
 }
 
-function Tools({ r }: { r: AuditReport }) {
+function Tools({ r, chartW, cols }: { r: AuditReport; chartW: number; cols: number }) {
   const rows = Object.entries(r.toolCalls)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 15)
@@ -172,13 +170,14 @@ function Tools({ r }: { r: AuditReport }) {
       color: n.startsWith("mcp__") ? theme.mcp : theme.accent,
     }));
   if (rows.length === 0) return <Text dimColor>no tool calls</Text>;
+  const maxLabel = Math.max(12, Math.min(40, cols - chartW - 16));
   const totalCalls = Object.values(r.toolCalls).reduce((s, n) => s + n, 0);
   const mcpCalls = Object.entries(r.toolCalls)
     .filter(([n]) => n.startsWith("mcp__"))
     .reduce((s, [, n]) => s + n, 0);
   return (
     <Box flexDirection="column">
-      <BarChart rows={rows} showShare maxLabel={40} />
+      <BarChart rows={rows} width={chartW} showShare maxLabel={maxLabel} />
       <Box marginTop={1}>
         <Text dimColor>
           {compact(totalCalls)} calls across {Object.keys(r.toolCalls).length} tools ·{" "}
@@ -218,16 +217,16 @@ function Servers({ r }: { r: AuditReport }) {
   );
 }
 
-function Sessions({ r }: { r: AuditReport }) {
+function Sessions({ r, cols }: { r: AuditReport; cols: number }) {
   const rows = r.sessions.slice(0, 12);
   if (rows.length === 0) return <Text dimColor>no sessions</Text>;
+  const wide = cols >= 60;
   return (
     <Box flexDirection="column">
       <Text dimColor>
         {"WHEN".padEnd(12)}
         {"LENGTH".padEnd(9)}
-        {"TURNS".padStart(6)}
-        {"TOOLS".padStart(7)}
+        {wide ? "TURNS".padStart(6) + "TOOLS".padStart(7) : ""}
         {"COST".padStart(9)}
         {"  MODEL"}
       </Text>
@@ -235,8 +234,7 @@ function Sessions({ r }: { r: AuditReport }) {
         <Text key={s.file}>
           {relativeDate(s.start).padEnd(12)}
           {duration(s.start, s.end).padEnd(9)}
-          {compact(s.turns).padStart(6)}
-          {compact(s.toolCallCount).padStart(7)}
+          {wide ? compact(s.turns).padStart(6) + compact(s.toolCallCount).padStart(7) : ""}
           <Text bold>{usd(s.costUsd).padStart(9)}</Text>
           <Text color={s.models[0] ? modelColor(s.models[0]) : undefined}>
             {"  " + (s.models[0] ? shortModel(s.models[0]) : "—")}
@@ -250,18 +248,20 @@ function Sessions({ r }: { r: AuditReport }) {
   );
 }
 
-function Activity({ r }: { r: AuditReport }) {
+function Activity({ r, chartW, cols }: { r: AuditReport; chartW: number; cols: number }) {
   const days = lastDays(r, 21).filter((d, i, all) => d.costUsd > 0 || i >= all.length - 14);
+  const wide = cols >= 66;
   const rows = days.slice(-16).map((d) => ({
     label: `${d.date} ${relativeDate(d.date) === "today" ? "◂" : " "}`,
     value: d.costUsd,
-    display: d.costUsd > 0 ? `${usd(d.costUsd)} · ${compact(d.turns)} turns` : "—",
+    display:
+      d.costUsd > 0 ? (wide ? `${usd(d.costUsd)} · ${compact(d.turns)} turns` : usd(d.costUsd)) : "—",
   }));
   if (r.daily.length === 0) return <Text dimColor>no dated activity</Text>;
   const avg = r.totalCostUsd / Math.max(1, r.daily.length);
   return (
     <Box flexDirection="column">
-      <BarChart rows={rows} width={26} />
+      <BarChart rows={rows} width={chartW} />
       <Box marginTop={1}>
         <Text dimColor>
           {r.daily.length} active days · avg {usd(avg)}/active day · projected{" "}
@@ -274,6 +274,7 @@ function Activity({ r }: { r: AuditReport }) {
 
 export function Dashboard({ project, initialTab = 0 }: { project: ProjectAudit; initialTab?: number }) {
   const [tab, setTab] = useState(initialTab);
+  const { cols } = useTerminalSize();
   useInput((input, key) => {
     const n = Number.parseInt(input, 10);
     if (n >= 1 && n <= TABS.length) setTab(n - 1);
@@ -282,27 +283,35 @@ export function Dashboard({ project, initialTab = 0 }: { project: ProjectAudit; 
   });
   const r = project.report;
   const span = r.spanStart && r.spanEnd ? `${r.spanStart} → ${r.spanEnd}` : `${r.spanDays}d`;
+  const fullPath = project.name.replace(/\\/g, "/");
+  const chartW = Math.max(10, Math.min(26, cols - 54));
 
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box flexDirection="column" marginBottom={1}>
-        <Text bold color={theme.accent}>
-          {project.name.replace(/\\/g, "/")}
+        <Text>
+          <Text bold color={theme.accent}>
+            {project.label}
+          </Text>
+          {project.label !== fullPath && cols >= project.label.length + fullPath.length + 6 ? (
+            <Text dimColor>  {fullPath}</Text>
+          ) : null}
         </Text>
         <Text dimColor>
-          {r.sessionCount} sessions · {span} · <Text>API-equivalent cost, computed offline</Text>
+          {r.sessionCount} sessions · {span}
+          {cols >= 70 ? " · API-equivalent cost, computed offline" : ""}
         </Text>
       </Box>
 
-      <TabBar tab={tab} />
+      <TabBar tab={tab} narrow={cols < 72} />
 
       <Box flexDirection="column">
-        {tab === 0 ? <Overview r={r} /> : null}
-        {tab === 1 ? <Models r={r} /> : null}
-        {tab === 2 ? <Tools r={r} /> : null}
+        {tab === 0 ? <Overview r={r} chartW={chartW} /> : null}
+        {tab === 1 ? <Models r={r} cols={cols} /> : null}
+        {tab === 2 ? <Tools r={r} chartW={chartW} cols={cols} /> : null}
         {tab === 3 ? <Servers r={r} /> : null}
-        {tab === 4 ? <Sessions r={r} /> : null}
-        {tab === 5 ? <Activity r={r} /> : null}
+        {tab === 4 ? <Sessions r={r} cols={cols} /> : null}
+        {tab === 5 ? <Activity r={r} chartW={chartW} cols={cols} /> : null}
       </Box>
     </Box>
   );

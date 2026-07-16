@@ -6,6 +6,7 @@ import type { SessionStats } from "./types.js";
 
 const AssistantLine = z.object({
   type: z.literal("assistant"),
+  cwd: z.string().optional(),
   timestamp: z.string().optional(),
   message: z.object({
     id: z.string().optional(),
@@ -45,7 +46,8 @@ export async function parseTranscript(
     const parsed = AssistantLine.safeParse(raw);
     if (!parsed.success) continue;
 
-    const { message, timestamp } = parsed.data;
+    const { message, timestamp, cwd } = parsed.data;
+    if (cwd && !stats.cwd) stats.cwd = cwd;
     if (timestamp) {
       if (!stats.firstTs) stats.firstTs = timestamp;
       stats.lastTs = timestamp;

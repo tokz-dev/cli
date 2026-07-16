@@ -11,9 +11,9 @@ export type View = "menu" | "list" | "project" | "aggregate";
 
 const HINTS: Record<View, string> = {
   menu: "↑↓ navigate · ⏎ select · ? help · q quit",
-  list: "↑↓ navigate · ⏎ open · / filter · s sort · esc back · ? help · q quit",
-  project: "1–6 or ←→ switch tab · esc back · ? help · q quit",
-  aggregate: "1–6 or ←→ switch tab · esc back · ? help · q quit",
+  list: "↑↓ move · ⏎ open · / filter · s sort · a all · esc back · ? help · q quit",
+  project: "1–6 ←→ tabs · esc back · ? help · q quit",
+  aggregate: "1–6 ←→ tabs · esc back · ? help · q quit",
 };
 
 export function App({
@@ -27,6 +27,7 @@ export function App({
 }) {
   const { exit } = useApp();
   const [view, setView] = useState<View>(initialView);
+  const [aggFrom, setAggFrom] = useState<View>("menu");
   const [selected, setSelected] = useState<ProjectAudit | undefined>(projects[initialSelected]);
   const [help, setHelp] = useState(false);
   const [filterCapture, setFilterCapture] = useState(false);
@@ -43,7 +44,8 @@ export function App({
     if (input === "?") setHelp(true);
     if (key.escape) {
       if (view === "project") setView("list");
-      else if (view === "list" || view === "aggregate") setView("menu");
+      else if (view === "aggregate") setView(aggFrom);
+      else if (view === "list") setView("menu");
     }
   });
 
@@ -59,12 +61,15 @@ export function App({
         totals={totals}
         onSelect={(action: MenuAction) => {
           if (action === "quit") exit();
-          else setView(action);
+          else {
+            if (action === "aggregate") setAggFrom("menu");
+            setView(action);
+          }
         }}
       />
     );
   } else if (view === "aggregate") {
-    content = <Dashboard project={{ id: "__all__", name: "All projects", report: totals }} />;
+    content = <Dashboard project={{ id: "__all__", name: "All projects", label: "All projects", report: totals }} />;
   } else if (view === "project" && selected) {
     content = <Dashboard project={selected} />;
   } else {
@@ -74,6 +79,10 @@ export function App({
         onSelect={(p) => {
           setSelected(p);
           setView("project");
+        }}
+        onAggregate={() => {
+          setAggFrom("list");
+          setView("aggregate");
         }}
         onFilteringChange={setFilterCapture}
       />

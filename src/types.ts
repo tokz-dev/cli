@@ -8,6 +8,8 @@ export interface UsageTotals {
 
 export interface SessionStats {
   file: string;
+  /** real project directory, captured from the transcript's cwd field */
+  cwd?: string;
   firstTs?: string;
   lastTs?: string;
   usageByModel: Record<string, UsageTotals>;

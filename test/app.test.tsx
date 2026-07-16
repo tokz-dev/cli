@@ -8,6 +8,7 @@ import { mkReport } from "./fixtures.js";
 const mk = (name: string, cost: number): ProjectAudit => ({
   id: name,
   name,
+  label: name.split("/").filter(Boolean).at(-1) ?? name,
   report: mkReport({
     totalCostUsd: cost,
     monthlyProjectionUsd: cost,
@@ -26,9 +27,10 @@ describe("App", () => {
     expect(lastFrame()).toContain("$6.00"); // aggregated total
   });
 
-  it("lists projects in the list view", () => {
+  it("lists projects by short name with a pinned All-projects row", () => {
     const { lastFrame } = render(<App projects={[mk("/proj-a", 5), mk("/proj-b", 1)]} initialView="list" />);
-    expect(lastFrame()).toContain("/proj-a");
+    expect(lastFrame()).toContain("proj-a");
+    expect(lastFrame()).toContain("All projects");
   });
 
   it("shows a project dashboard in the project view", () => {

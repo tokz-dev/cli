@@ -9,6 +9,7 @@ import { mkReport } from "./fixtures.js";
 const project: ProjectAudit = {
   id: "-home-me-proj",
   name: "/home/me/proj",
+  label: "proj",
   realPath: "/home/me/proj",
   report: mkReport({
     sessionCount: 2,

@@ -18,9 +18,11 @@ sparkline.
 
 From there:
 
-- **Project list** — every project ranked by cost, with session count, last
-  activity, and share bars. Press `/` to filter by name, `s` to cycle sorting
-  (cost · recent · name).
+- **Project list** — every project by short name (real paths recovered from
+  the transcripts themselves), ranked by cost, with session count, last
+  activity, and share bars, plus a pinned **All projects** row. Press `/` to
+  filter by name, `s` to cycle sorting (cost · recent · name), `a` to jump to
+  the aggregate view.
 - **Dashboard** (per project or aggregated) — six tabs, switched with `1–6`
   or `←`/`→`:
   1. **Overview** — stat cards, 30-day cost sparkline with peak day, cost by
@@ -34,6 +36,11 @@ From there:
      tool calls, and dominant model.
   6. **Activity** — daily cost bars with turn counts, average per active day.
 - `?` shows a help overlay, `esc` goes back, `q` quits.
+
+The layout is responsive: on narrow terminals the list drops columns (share
+bar, then last-active, then sessions), tables keep only their key columns,
+tab labels collapse to numbers, and the banner shrinks — nothing wraps or
+breaks down to ~35 columns.
 
 Piped or non-interactive, `tokz` falls back to the static aggregate report
 automatically.

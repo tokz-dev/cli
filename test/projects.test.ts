@@ -4,10 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadProjects } from "../src/projects.js";
 
-function assistantLine(model: string, output: number, msgId: string, tool?: string) {
+function assistantLine(model: string, output: number, msgId: string, tool?: string, cwd?: string) {
   return JSON.stringify({
     type: "assistant",
     timestamp: "2026-07-01T00:00:00Z",
+    cwd,
     message: {
       id: msgId,
       model,
@@ -39,8 +40,21 @@ describe("loadProjects", () => {
     expect(projects[0].name).toBe(realPath); // real path resolved
     expect(projects[0].report.servers.map((s) => s.name)).toEqual(["ctx"]);
     expect(projects[0].report.servers[0].unused).toBe(false); // ctx was called
-    expect(projects[1].name).toBe("-home-me-small"); // no config match -> id
+    expect(projects[0].label).toBe("big"); // basename for display
+    expect(projects[1].name).toBe("-home-me-small"); // no config match, no cwd -> id
+    expect(projects[1].label).toBe("-home-me-small");
     expect(projects[1].report.servers).toEqual([]);
+  });
+
+  it("falls back to the transcript cwd for the real path when config has no entry", async () => {
+    const home = mkdtempSync(join(tmpdir(), "tokz-lp-cwd-"));
+    const dir = join(home, ".claude", "projects", "-home-me-app");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "s.jsonl"), assistantLine("claude-opus-4-8", 10, "msg_1", undefined, "/home/me/app"));
+
+    const projects = await loadProjects(home);
+    expect(projects[0].name).toBe("/home/me/app");
+    expect(projects[0].label).toBe("app");
   });
 
   it("returns empty array when projects dir is missing", async () => {
