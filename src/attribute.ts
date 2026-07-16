@@ -19,11 +19,12 @@ export function addUsage(acc: UsageTotals, u: UsageTotals): void {
   acc.turns += u.turns;
 }
 
-/** What the cache reads would have cost at full input price, minus the 0.1x they did cost. */
+/** What the cache reads would have cost at full input price, minus what they did cost. */
 export function cacheSavings(usageByModel: Record<string, UsageTotals>): number {
   let saved = 0;
   for (const [model, u] of Object.entries(usageByModel)) {
-    saved += (u.cacheReadTokens / 1e6) * resolvePrice(model).inputPerMTok * 0.9;
+    const p = resolvePrice(model);
+    saved += (u.cacheReadTokens / 1e6) * p.inputPerMTok * (1 - (p.cacheReadMult ?? 0.1));
   }
   return saved;
 }

@@ -3,10 +3,16 @@ import type { CostBreakdown, UsageTotals } from "./types.js";
 export interface ModelPrice {
   inputPerMTok: number;
   outputPerMTok: number;
+  /** cache read price as a fraction of input price (default 0.1) */
+  cacheReadMult?: number;
+  /** cache write price as a fraction of input price (default: provider-specific) */
+  cacheWriteMult?: number;
 }
 
-// USD per million tokens. Cached from Anthropic docs 2026-06-24.
+// USD per million tokens. Anthropic cached 2026-06-24; OpenAI/Google cached 2026-07-16.
+// Longest matching prefix wins, so "gpt-5-mini" beats "gpt-5".
 export const PRICES: Record<string, ModelPrice> = {
+  // Anthropic (cache write 1.25x input, cache read 0.1x)
   "claude-fable-5": { inputPerMTok: 10, outputPerMTok: 50 },
   "claude-opus-4-8": { inputPerMTok: 5, outputPerMTok: 25 },
   "claude-opus-4-7": { inputPerMTok: 5, outputPerMTok: 25 },
@@ -14,17 +20,38 @@ export const PRICES: Record<string, ModelPrice> = {
   "claude-sonnet-5": { inputPerMTok: 3, outputPerMTok: 15 },
   "claude-sonnet-4-6": { inputPerMTok: 3, outputPerMTok: 15 },
   "claude-haiku-4-5": { inputPerMTok: 1, outputPerMTok: 5 },
+  // OpenAI (no cache-write charge; cached input 0.1x)
+  "gpt-5-codex": { inputPerMTok: 1.25, outputPerMTok: 10, cacheWriteMult: 0 },
+  "gpt-5-mini": { inputPerMTok: 0.25, outputPerMTok: 2, cacheWriteMult: 0 },
+  "gpt-5-nano": { inputPerMTok: 0.05, outputPerMTok: 0.4, cacheWriteMult: 0 },
+  "gpt-5": { inputPerMTok: 1.25, outputPerMTok: 10, cacheWriteMult: 0 },
+  "gpt-4.1-mini": { inputPerMTok: 0.4, outputPerMTok: 1.6, cacheWriteMult: 0, cacheReadMult: 0.25 },
+  "gpt-4.1": { inputPerMTok: 2, outputPerMTok: 8, cacheWriteMult: 0, cacheReadMult: 0.25 },
+  "codex-mini": { inputPerMTok: 1.5, outputPerMTok: 6, cacheWriteMult: 0, cacheReadMult: 0.25 },
+  "o4-mini": { inputPerMTok: 1.1, outputPerMTok: 4.4, cacheWriteMult: 0, cacheReadMult: 0.25 },
+  o3: { inputPerMTok: 2, outputPerMTok: 8, cacheWriteMult: 0, cacheReadMult: 0.25 },
+  // Google
+  "gemini-2.5-pro": { inputPerMTok: 1.25, outputPerMTok: 10, cacheWriteMult: 0 },
+  "gemini-2.5-flash": { inputPerMTok: 0.3, outputPerMTok: 2.5, cacheWriteMult: 0 },
 };
 
-const CACHE_READ_MULT = 0.1;
-const CACHE_WRITE_MULT = 1.25;
-const FALLBACK = PRICES["claude-opus-4-8"];
+const DEFAULT_CACHE_READ_MULT = 0.1;
+const DEFAULT_CACHE_WRITE_MULT = 1.25;
+const CLAUDE_FALLBACK = PRICES["claude-opus-4-8"];
+// Unknown non-Claude models cost $0 rather than being priced like the wrong provider.
+const UNKNOWN: ModelPrice = { inputPerMTok: 0, outputPerMTok: 0 };
 
 export function resolvePrice(modelId: string): ModelPrice {
+  let best: ModelPrice | undefined;
+  let bestLen = -1;
   for (const [prefix, price] of Object.entries(PRICES)) {
-    if (modelId.startsWith(prefix)) return price;
+    if (modelId.startsWith(prefix) && prefix.length > bestLen) {
+      best = price;
+      bestLen = prefix.length;
+    }
   }
-  return FALLBACK;
+  if (best) return best;
+  return modelId.startsWith("claude") ? CLAUDE_FALLBACK : UNKNOWN;
 }
 
 export function emptyUsage(): UsageTotals {
@@ -33,9 +60,11 @@ export function emptyUsage(): UsageTotals {
 
 export function costUsd(usage: UsageTotals, modelId: string): CostBreakdown {
   const p = resolvePrice(modelId);
+  const readMult = p.cacheReadMult ?? DEFAULT_CACHE_READ_MULT;
+  const writeMult = p.cacheWriteMult ?? DEFAULT_CACHE_WRITE_MULT;
   const input = (usage.inputTokens / 1e6) * p.inputPerMTok;
-  const cacheRead = (usage.cacheReadTokens / 1e6) * p.inputPerMTok * CACHE_READ_MULT;
-  const cacheWrite = (usage.cacheCreationTokens / 1e6) * p.inputPerMTok * CACHE_WRITE_MULT;
+  const cacheRead = (usage.cacheReadTokens / 1e6) * p.inputPerMTok * readMult;
+  const cacheWrite = (usage.cacheCreationTokens / 1e6) * p.inputPerMTok * writeMult;
   const output = (usage.outputTokens / 1e6) * p.outputPerMTok;
   return { input, cacheRead, cacheWrite, output, total: input + cacheRead + cacheWrite + output };
 }

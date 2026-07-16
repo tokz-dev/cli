@@ -25,10 +25,12 @@ function Button({ isSelected, label }: { isSelected?: boolean; label: string }) 
 export function Menu({
   projects,
   totals,
+  agentName,
   onSelect,
 }: {
   projects: ProjectAudit[];
   totals: AuditReport;
+  agentName?: string;
   onSelect: (action: MenuAction) => void;
 }) {
   const range =
@@ -44,7 +46,9 @@ export function Menu({
 
   return (
     <Box flexDirection="column">
-      <Banner subtitle="where your agent's tokens and dollars go · 100% offline" />
+      <Banner
+        subtitle={`${agentName ? `${agentName} · ` : ""}where your agent's tokens and dollars go · 100% offline`}
+      />
 
       <Box marginBottom={1}>
         <StatCards

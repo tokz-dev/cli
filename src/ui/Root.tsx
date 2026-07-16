@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Box, Text, useApp } from "ink";
-import { loadProjects, type LoadProgress, type ProjectAudit } from "../projects.js";
+import { loadAllAgents } from "../agents/index.js";
+import type { AgentData } from "../agents/types.js";
+import type { LoadProgress } from "../projects.js";
 import { App } from "./App.js";
 import { Banner } from "./Banner.js";
 import { theme } from "./theme.js";
@@ -17,33 +19,39 @@ function ProgressBar({ done, total, width = 30 }: { done: number; total: number;
   );
 }
 
-// Loads all projects with a live progress bar, then hands off to the App.
+// Loads every detected agent's data with a live progress bar, then hands off to the App.
 export function Root() {
   const { exit } = useApp();
-  const [projects, setProjects] = useState<ProjectAudit[] | undefined>();
+  const [agents, setAgents] = useState<AgentData[] | undefined>();
+  const [agentName, setAgentName] = useState("");
   const [progress, setProgress] = useState<LoadProgress>({ parsed: 0, total: 0 });
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => setFrame((f) => f + 1), 80);
-    loadProjects(undefined, setProgress)
-      .then(setProjects)
-      .catch(() => setProjects([]))
+    loadAllAgents(undefined, (agent, p) => {
+      setAgentName(agent);
+      setProgress(p);
+    })
+      .then(setAgents)
+      .catch(() => setAgents([]))
       .finally(() => clearInterval(timer));
     return () => clearInterval(timer);
   }, []);
 
+  const empty = agents !== undefined && !agents.some((a) => a.projects.length > 0);
   useEffect(() => {
-    if (projects && projects.length === 0) exit();
-  }, [projects, exit]);
+    if (empty) exit();
+  }, [empty, exit]);
 
-  if (!projects) {
+  if (!agents) {
     return (
       <Box flexDirection="column" paddingX={1}>
-        <Banner subtitle="where your agent's tokens and dollars go · 100% offline" />
+        <Banner subtitle="where your agents' tokens and dollars go · 100% offline" />
         <Box flexDirection="column">
           <Text>
-            <Text color={theme.accent}>{SPINNER[frame % SPINNER.length]}</Text> Parsing transcripts…{" "}
+            <Text color={theme.accent}>{SPINNER[frame % SPINNER.length]}</Text> Parsing
+            {agentName ? ` ${agentName}` : ""}…{" "}
             <Text bold>
               {progress.parsed}/{progress.total || "?"}
             </Text>
@@ -57,6 +65,6 @@ export function Root() {
     );
   }
 
-  if (projects.length === 0) return <Text>No Claude Code transcripts found under ~/.claude/projects.</Text>;
-  return <App projects={projects} />;
+  if (empty) return <Text>No agent usage data found (Claude Code, Codex, OpenCode…).</Text>;
+  return <App agents={agents} />;
 }

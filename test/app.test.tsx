@@ -41,13 +41,54 @@ describe("App", () => {
 
   it("shows an aggregate dashboard in the aggregate view", () => {
     const { lastFrame } = render(<App projects={[mk("/proj-a", 5), mk("/proj-b", 1)]} initialView="aggregate" />);
-    expect(lastFrame()).toContain("All projects");
+    expect(lastFrame()).toContain("All Claude Code projects");
     expect(lastFrame()).toContain("API-equivalent");
   });
 
   it("shows a message when there are no projects", () => {
     const { lastFrame } = render(<App projects={[]} />);
-    expect(lastFrame()).toContain("No Claude Code transcripts");
+    expect(lastFrame()).toContain("No agent usage data");
+  });
+
+  it("shows the agent picker when multiple agents are provided", () => {
+    const agents = [
+      {
+        adapter: { id: "claude", name: "Claude Code", supported: true, detect: async () => true, loadProjects: async () => [] },
+        detected: true,
+        projects: [mk("/proj-a", 5)],
+      },
+      {
+        adapter: { id: "codex", name: "OpenAI Codex", supported: true, detect: async () => true, loadProjects: async () => [] },
+        detected: false,
+        projects: [],
+      },
+    ];
+    const { lastFrame } = render(<App agents={agents} />);
+    expect(lastFrame()).toContain("Pick an agent");
+    expect(lastFrame()).toContain("Claude Code");
+    expect(lastFrame()).toContain("OpenAI Codex");
+    expect(lastFrame()).toContain("not detected");
+  });
+
+  it("enters the selected agent's menu from the picker", async () => {
+    const agents = [
+      {
+        adapter: { id: "claude", name: "Claude Code", supported: true, detect: async () => true, loadProjects: async () => [] },
+        detected: true,
+        projects: [mk("/proj-a", 5)],
+      },
+      {
+        adapter: { id: "codex", name: "OpenAI Codex", supported: true, detect: async () => true, loadProjects: async () => [] },
+        detected: true,
+        projects: [],
+      },
+    ];
+    const { lastFrame, stdin } = render(<App agents={agents} />);
+    await new Promise((r) => setTimeout(r, 50));
+    stdin.write("\r");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(lastFrame()).toContain("Browse projects");
+    expect(lastFrame()).toContain("Claude Code");
   });
 
   it("opens the help overlay on ?", async () => {

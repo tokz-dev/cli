@@ -41,11 +41,13 @@ function displayLabels(projects: ProjectAudit[]): Map<string, string> {
 
 export function ProjectList({
   projects,
+  agentName,
   onSelect,
   onAggregate,
   onFilteringChange,
 }: {
   projects: ProjectAudit[];
+  agentName?: string;
   onSelect: (project: ProjectAudit) => void;
   onAggregate: () => void;
   onFilteringChange?: (filtering: boolean) => void;
@@ -143,7 +145,7 @@ export function ProjectList({
     <Box flexDirection="column" paddingX={1}>
       <Box marginBottom={1} flexDirection="column">
         <Text bold color={theme.accent}>
-          Projects
+          Projects{agentName ? <Text dimColor> — {agentName}</Text> : null}
         </Text>
         <Text dimColor>
           {filtered.length}

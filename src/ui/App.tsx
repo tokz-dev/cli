@@ -1,43 +1,76 @@
 import { useMemo, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
+import type { AgentData } from "../agents/types.js";
 import type { ProjectAudit } from "../projects.js";
 import { aggregate, applyTimeframe } from "../projects.js";
 import { nextTimeframe, timeframeLabel, timeframeRange, type TimeframeId } from "../timeframe.js";
+import { AgentPicker } from "./AgentPicker.js";
 import { Menu, type MenuAction } from "./Menu.js";
 import { ProjectList } from "./ProjectList.js";
 import { Dashboard } from "./Dashboard.js";
 import { HelpOverlay } from "./HelpOverlay.js";
 
-export type View = "menu" | "list" | "project" | "aggregate";
+export type View = "agents" | "menu" | "list" | "project" | "aggregate";
 
 const HINTS: Record<View, string> = {
-  menu: "↑↓ navigate · ⏎ select · ? help · q quit",
+  agents: "↑↓ navigate · ⏎ select · ? help · q quit",
+  menu: "↑↓ navigate · ⏎ select · esc agents · ? help · q quit",
   list: "↑↓ move · ⏎ open · / filter · s sort · a all · esc back · ? help · q quit",
   project: "1–6 ←→ tabs · esc back · ? help · q quit",
   aggregate: "1–6 ←→ tabs · esc back · ? help · q quit",
 };
 
+/** Wrap a bare project list (tests, legacy callers) as a single Claude Code agent. */
+function wrapProjects(projects: ProjectAudit[]): AgentData[] {
+  return [
+    {
+      adapter: {
+        id: "claude",
+        name: "Claude Code",
+        supported: true,
+        detect: async () => true,
+        loadProjects: async () => projects,
+      },
+      detected: true,
+      projects,
+    },
+  ];
+}
+
 export function App({
+  agents,
   projects,
-  initialView = "menu",
+  initialView,
   initialSelected = 0,
 }: {
-  projects: ProjectAudit[];
+  agents?: AgentData[];
+  projects?: ProjectAudit[];
   initialView?: View;
   initialSelected?: number;
 }) {
   const { exit } = useApp();
-  const [view, setView] = useState<View>(initialView);
+  const agentList = useMemo(
+    () => agents ?? wrapProjects(projects ?? []),
+    [agents, projects],
+  );
+  const multiAgent = agentList.length > 1;
+  const firstWithData = Math.max(0, agentList.findIndex((a) => a.projects.length > 0));
+  const [agentIdx, setAgentIdx] = useState(firstWithData);
+  const [view, setView] = useState<View>(initialView ?? (multiAgent ? "agents" : "menu"));
   const [aggFrom, setAggFrom] = useState<View>("menu");
-  const [selected, setSelected] = useState<ProjectAudit | undefined>(projects[initialSelected]);
+  const activeProjects = agentList[agentIdx]?.projects ?? [];
+  const [selected, setSelected] = useState<ProjectAudit | undefined>(
+    activeProjects[initialSelected],
+  );
   const [help, setHelp] = useState(false);
   const [filterCapture, setFilterCapture] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeId>("all");
   const scoped = useMemo(
-    () => applyTimeframe(projects, timeframeRange(timeframe)),
-    [projects, timeframe],
+    () => applyTimeframe(activeProjects, timeframeRange(timeframe)),
+    [activeProjects, timeframe],
   );
   const totals = useMemo(() => aggregate(scoped), [scoped]);
+  const agentName = agentList[agentIdx]?.adapter.name ?? "";
 
   useInput((input, key) => {
     if (help) {
@@ -48,25 +81,39 @@ export function App({
     if (filterCapture) return;
     if (input === "q") exit();
     if (input === "?") setHelp(true);
-    if (input === "t") setTimeframe((tf) => nextTimeframe(tf));
+    if (input === "t" && view !== "agents") setTimeframe((tf) => nextTimeframe(tf));
     if (key.escape) {
       if (view === "project") setView("list");
       else if (view === "aggregate") setView(aggFrom);
       else if (view === "list") setView("menu");
+      else if (view === "menu" && multiAgent) setView("agents");
     }
   });
 
-  if (projects.length === 0) return <Text>No Claude Code transcripts found.</Text>;
+  const anyData = agentList.some((a) => a.projects.length > 0);
+  if (!anyData) return <Text>No agent usage data found (Claude Code, Codex, OpenCode…).</Text>;
 
   const tfLabel = timeframeLabel(timeframe);
   let content: React.ReactNode;
   if (help) {
     content = <HelpOverlay />;
+  } else if (view === "agents") {
+    content = (
+      <AgentPicker
+        agents={agentList}
+        onSelect={(i) => {
+          setAgentIdx(i);
+          setSelected(undefined);
+          setView("menu");
+        }}
+      />
+    );
   } else if (view === "menu") {
     content = (
       <Menu
         projects={scoped}
         totals={totals}
+        agentName={agentName}
         onSelect={(action: MenuAction) => {
           if (action === "quit") exit();
           else {
@@ -79,7 +126,12 @@ export function App({
   } else if (view === "aggregate") {
     content = (
       <Dashboard
-        project={{ id: "__all__", name: "All projects", label: "All projects", report: totals }}
+        project={{
+          id: "__all__",
+          name: `All ${agentName} projects`,
+          label: `All ${agentName} projects`,
+          report: totals,
+        }}
         timeframe={tfLabel}
       />
     );
@@ -99,6 +151,7 @@ export function App({
     content = (
       <ProjectList
         projects={scoped}
+        agentName={agentName}
         onSelect={(p) => {
           setSelected(p);
           setView("project");
@@ -121,6 +174,8 @@ export function App({
         <Text dimColor>
           {help ? (
             "any key to close help"
+          ) : view === "agents" ? (
+            HINTS.agents
           ) : (
             <>
               <Text color={timeframe === "all" ? undefined : "yellow"}>⏱ {tfLabel}</Text>
