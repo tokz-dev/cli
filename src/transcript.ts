@@ -19,18 +19,20 @@ const AssistantLine = z.object({
       })
       .optional(),
     content: z
-      .array(z.object({ type: z.string(), name: z.string().optional() }).passthrough())
+      .array(z.object({ type: z.string(), id: z.string().optional(), name: z.string().optional() }).passthrough())
       .optional(),
   }),
 });
 
 // Claude Code writes one transcript line per content block (thinking/text/tool_use),
 // each repeating the SAME message.usage; resumed sessions also copy prior messages
-// into new files. Both inflate token totals, so usage is counted once per message.id.
-// `seenMessageIds` must be shared across every file in a run for cross-file dedup.
+// into new files. Both inflate totals, so usage is counted once per message.id and
+// tool calls once per tool_use block id (toolu_...). Both `seen*` sets must be shared
+// across every file in a run so cross-file (resumed-session) copies are deduped too.
 export async function parseTranscript(
   file: string,
   seenMessageIds: Set<string> = new Set(),
+  seenToolIds: Set<string> = new Set(),
 ): Promise<SessionStats> {
   const stats: SessionStats = { file, usageByModel: {}, toolCalls: {} };
   const rl = createInterface({ input: createReadStream(file, "utf8"), crlfDelay: Infinity });
@@ -65,9 +67,13 @@ export async function parseTranscript(
       u.turns += 1;
     }
     for (const block of message.content ?? []) {
-      if (block.type === "tool_use" && block.name) {
-        stats.toolCalls[block.name] = (stats.toolCalls[block.name] ?? 0) + 1;
+      if (block.type !== "tool_use" || !block.name) continue;
+      // Dedupe by tool_use block id: resumed-session copies repeat the same call.
+      if (block.id) {
+        if (seenToolIds.has(block.id)) continue;
+        seenToolIds.add(block.id);
       }
+      stats.toolCalls[block.name] = (stats.toolCalls[block.name] ?? 0) + 1;
     }
   }
   return stats;

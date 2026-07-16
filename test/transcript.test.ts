@@ -87,4 +87,22 @@ describe("parseTranscript", () => {
     const total = (sa.usageByModel["claude-opus-4-8"]?.inputTokens ?? 0) + (sb.usageByModel["claude-opus-4-8"]?.inputTokens ?? 0);
     expect(total).toBe(100); // counted once across both files, not 200
   });
+
+  it("dedupes tool_use by block id across files (resumed sessions copy tool calls)", async () => {
+    const mk = (prefix: string, msgId: string) => {
+      const dir = mkdtempSync(join(tmpdir(), prefix));
+      const file = join(dir, "s.jsonl");
+      writeFileSync(file, JSON.stringify({ type: "assistant", message: { id: msgId, model: "claude-opus-4-8", content: [{ type: "tool_use", id: "toolu_same", name: "Bash" }] } }));
+      return file;
+    };
+    // Same tool_use block id in two files, different message ids.
+    const a = mk("tokz-t1-", "msg_a");
+    const b = mk("tokz-t2-", "msg_b");
+    const seenMsg = new Set<string>();
+    const seenTool = new Set<string>();
+    const sa = await parseTranscript(a, seenMsg, seenTool);
+    const sb = await parseTranscript(b, seenMsg, seenTool);
+    const bash = (sa.toolCalls["Bash"] ?? 0) + (sb.toolCalls["Bash"] ?? 0);
+    expect(bash).toBe(1); // one real call, not double-counted across the copy
+  });
 });
