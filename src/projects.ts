@@ -7,7 +7,15 @@ import { sanitizeProjectPath } from "./discover.js";
 import { findMcpServers } from "./mcp.js";
 import { costUsd, emptyUsage } from "./pricing.js";
 import { parseTranscript } from "./transcript.js";
-import type { AuditReport, CostBreakdown, DailyStat, ServerAudit, UsageTotals } from "./types.js";
+import type {
+  AuditReport,
+  CostBreakdown,
+  DailyStat,
+  McpServer,
+  ServerAudit,
+  SessionStats,
+  UsageTotals,
+} from "./types.js";
 
 export interface ProjectAudit {
   id: string;
@@ -16,6 +24,25 @@ export interface ProjectAudit {
   label: string;
   realPath?: string;
   report: AuditReport;
+  /** raw parsed sessions, kept so reports can be rebuilt for a timeframe */
+  sessions?: SessionStats[];
+  serverList?: McpServer[];
+}
+
+/** Rebuild every project's report restricted to a date range; drops projects with no activity in it. */
+export function applyTimeframe(
+  projects: ProjectAudit[],
+  range: { from: string; to: string } | undefined,
+): ProjectAudit[] {
+  if (!range) return projects;
+  return projects
+    .map((p) =>
+      p.sessions
+        ? { ...p, report: buildReport(p.sessions, p.serverList ?? [], range) }
+        : p,
+    )
+    .filter((p) => !p.sessions || p.report.sessionCount > 0)
+    .sort((a, b) => b.report.totalCostUsd - a.report.totalCostUsd);
 }
 
 export function baseName(p: string): string {
@@ -157,6 +184,8 @@ export async function loadProjects(
       label: realPath ? baseName(realPath) : dir,
       realPath,
       report: buildReport(sessions, servers),
+      sessions,
+      serverList: servers,
     });
   }
 

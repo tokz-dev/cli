@@ -79,7 +79,40 @@ function summarizeSession(s: SessionStats): SessionSummary {
   };
 }
 
-export function buildReport(sessions: SessionStats[], servers: McpServer[]): AuditReport {
+/**
+ * Restrict a session to activity between two inclusive ISO dates. Usage is
+ * rebuilt from the per-day breakdown; tool calls are kept whole for any
+ * session that overlaps the range (they aren't dated per day). Returns null
+ * when the session has no activity in the range.
+ */
+export function clampSession(s: SessionStats, from: string, to: string): SessionStats | null {
+  const days = Object.entries(s.dailyUsage ?? {}).filter(([d]) => d >= from && d <= to);
+  if (days.length === 0) return null;
+  const usageByModel: Record<string, UsageTotals> = {};
+  for (const [, byModel] of days) {
+    for (const [model, u] of Object.entries(byModel)) {
+      addUsage((usageByModel[model] ??= emptyUsage()), u);
+    }
+  }
+  // Clamp the session's timestamps to the range so spans and durations
+  // reflect only the window being viewed (ISO strings compare lexically).
+  const lo = `${from}T00:00:00Z`;
+  const hi = `${to}T23:59:59.999Z`;
+  const firstTs = s.firstTs && s.firstTs > lo ? s.firstTs : lo;
+  const lastTs = s.lastTs && s.lastTs < hi ? s.lastTs : hi;
+  return { ...s, firstTs, lastTs, usageByModel, dailyUsage: Object.fromEntries(days) };
+}
+
+export function buildReport(
+  sessions: SessionStats[],
+  servers: McpServer[],
+  range?: { from: string; to: string },
+): AuditReport {
+  if (range) {
+    sessions = sessions
+      .map((s) => clampSession(s, range.from, range.to))
+      .filter((s): s is SessionStats => s !== null);
+  }
   const usageByModel: Record<string, UsageTotals> = {};
   const toolCalls: Record<string, number> = {};
   const dailyUsage: Record<string, Record<string, UsageTotals>> = {};

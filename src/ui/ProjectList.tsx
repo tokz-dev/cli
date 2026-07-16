@@ -147,7 +147,8 @@ export function ProjectList({
         </Text>
         <Text dimColor>
           {filtered.length}
-          {filter ? `/${projects.length}` : ""} projects · {usd(total)} total · sorted by {sort}
+          {filter ? `/${projects.length}` : ""} project{filtered.length === 1 && !filter ? "" : "s"} ·{" "}
+          {usd(total)} total · sorted by {sort}
           {filtering || filter ? (
             <Text>
               {" · filter: "}

@@ -35,6 +35,9 @@ From there:
   5. **Sessions** — costliest sessions with date, wall-clock length, turns,
      tool calls, and dominant model.
   6. **Activity** — daily cost bars with turn counts, average per active day.
+- **Timeframe** — press `t` anywhere to cycle All time · Today · Yesterday ·
+  Last 7 days · Last 30 days; every list, chart, and total rescopes to that
+  window (`--days N` does the same for the static report).
 - `?` shows a help overlay, `esc` goes back, `q` quits.
 
 The layout is responsive: on narrow terminals the list drops columns (share

@@ -17,7 +17,8 @@ program
   .argument("[project]", "project path (default: current directory)")
   .option("--all", "scan all projects under ~/.claude/projects")
   .option("--json", "output raw JSON report")
-  .action(async (project: string | undefined, opts: { all?: boolean; json?: boolean }) => {
+  .option("--days <n>", "only include the last N days of activity")
+  .action(async (project: string | undefined, opts: { all?: boolean; json?: boolean; days?: string }) => {
     const projectPath = project ?? process.cwd();
     const transcripts = await findTranscripts(opts.all ? undefined : projectPath);
     if (transcripts.length === 0) {
@@ -31,7 +32,10 @@ program
       transcripts.map((f) => parseTranscript(f, seenMessageIds, seenToolIds)),
     );
     const servers = opts.all ? [] : await findMcpServers(projectPath);
-    const report = buildReport(sessions, servers);
+    const days = opts.days ? Number.parseInt(opts.days, 10) : undefined;
+    const isoDay = (offset: number) => new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10);
+    const range = days && days > 0 ? { from: isoDay(days - 1), to: isoDay(0) } : undefined;
+    const report = buildReport(sessions, servers, range);
     console.log(opts.json ? JSON.stringify(report, null, 2) : renderReport(report));
   });
 

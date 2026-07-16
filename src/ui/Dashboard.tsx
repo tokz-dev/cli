@@ -272,7 +272,15 @@ function Activity({ r, chartW, cols }: { r: AuditReport; chartW: number; cols: n
   );
 }
 
-export function Dashboard({ project, initialTab = 0 }: { project: ProjectAudit; initialTab?: number }) {
+export function Dashboard({
+  project,
+  initialTab = 0,
+  timeframe,
+}: {
+  project: ProjectAudit;
+  initialTab?: number;
+  timeframe?: string;
+}) {
   const [tab, setTab] = useState(initialTab);
   const { cols } = useTerminalSize();
   useInput((input, key) => {
@@ -298,6 +306,9 @@ export function Dashboard({ project, initialTab = 0 }: { project: ProjectAudit; 
           ) : null}
         </Text>
         <Text dimColor>
+          {timeframe && timeframe !== "All time" ? (
+            <Text color="yellow">{timeframe} · </Text>
+          ) : null}
           {r.sessionCount} sessions · {span}
           {cols >= 70 ? " · API-equivalent cost, computed offline" : ""}
         </Text>
