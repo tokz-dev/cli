@@ -6,7 +6,7 @@ import { addUsage, buildReport, cacheHitRate, cacheSavings } from "./attribute.j
 import { sanitizeProjectPath } from "./discover.js";
 import { findMcpServers } from "./mcp.js";
 import { costUsd, emptyUsage } from "./pricing.js";
-import { parseTranscript } from "./transcript.js";
+import { parseTranscript, type CountedUsage } from "./transcript.js";
 import type {
   AuditReport,
   CostBreakdown,
@@ -171,7 +171,7 @@ export async function loadProjects(
   }
 
   const realMap = await realPathsBySanitized(home);
-  const seenMessageIds = new Set<string>();
+  const seenMessageIds = new Map<string, CountedUsage>();
   const seenToolIds = new Set<string>();
   let parsed = 0;
 

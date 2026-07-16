@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseTranscript } from "../src/transcript.js";
+import { parseTranscript, type CountedUsage } from "../src/transcript.js";
 
 const lines = [
   JSON.stringify({
@@ -62,6 +62,38 @@ describe("parseTranscript", () => {
     expect(stats.toolCostUsd["Read"]).toBeCloseTo(0.01040625 + 0.00055, 6);
   });
 
+  it("takes the highest usage per message.id when streamed lines grow (real CC behavior)", async () => {
+    // Streamed blocks repeat the message id with output_tokens growing: 1, 1, 638.
+    const mkLine = (out: number, cw1h = 0) =>
+      JSON.stringify({
+        type: "assistant",
+        timestamp: "2026-07-01T10:00:00Z",
+        message: {
+          id: "msg_grow",
+          model: "claude-haiku-4-5",
+          usage: {
+            input_tokens: 10,
+            cache_creation_input_tokens: 100,
+            cache_read_input_tokens: 0,
+            output_tokens: out,
+            cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: cw1h },
+          },
+          content: [],
+        },
+      });
+    const dir = mkdtempSync(join(tmpdir(), "tokz-grow-"));
+    const file = join(dir, "s.jsonl");
+    writeFileSync(file, [mkLine(1, 100), mkLine(1, 100), mkLine(638, 100)].join("\n"));
+
+    const stats = await parseTranscript(file);
+    const u = stats.usageByModel["claude-haiku-4-5"];
+    expect(u.outputTokens).toBe(638); // max, not first (1) or sum (640)
+    expect(u.inputTokens).toBe(10);
+    expect(u.cacheCreationTokens).toBe(100);
+    expect(u.cacheCreation1hTokens).toBe(100); // 1h tier tracked
+    expect(u.turns).toBe(1);
+  });
+
   it("counts usage once per message.id but tool_use on every line (block-split messages)", async () => {
     // Claude Code splits one API message across lines (thinking/text/tool_use),
     // each repeating the same usage. Usage must be counted once; each tool_use once.
@@ -93,7 +125,7 @@ describe("parseTranscript", () => {
     };
     const a = mk("tokz-r1-");
     const b = mk("tokz-r2-");
-    const seen = new Set<string>();
+    const seen = new Map<string, CountedUsage>();
     const sa = await parseTranscript(a, seen);
     const sb = await parseTranscript(b, seen);
     const total = (sa.usageByModel["claude-opus-4-8"]?.inputTokens ?? 0) + (sb.usageByModel["claude-opus-4-8"]?.inputTokens ?? 0);
@@ -110,7 +142,7 @@ describe("parseTranscript", () => {
     // Same tool_use block id in two files, different message ids.
     const a = mk("tokz-t1-", "msg_a");
     const b = mk("tokz-t2-", "msg_b");
-    const seenMsg = new Set<string>();
+    const seenMsg = new Map<string, CountedUsage>();
     const seenTool = new Set<string>();
     const sa = await parseTranscript(a, seenMsg, seenTool);
     const sb = await parseTranscript(b, seenMsg, seenTool);

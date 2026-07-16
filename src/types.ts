@@ -2,6 +2,8 @@ export interface UsageTotals {
   inputTokens: number;
   cacheReadTokens: number;
   cacheCreationTokens: number;
+  /** subset of cacheCreationTokens written to the 1-hour cache (billed 2x input vs 1.25x for 5m) */
+  cacheCreation1hTokens?: number;
   outputTokens: number;
   turns: number;
 }

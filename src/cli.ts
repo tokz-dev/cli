@@ -6,7 +6,7 @@ import { buildReport } from "./attribute.js";
 import { findTranscripts } from "./discover.js";
 import { findMcpServers } from "./mcp.js";
 import { renderReport } from "./report.js";
-import { parseTranscript } from "./transcript.js";
+import { parseTranscript, type CountedUsage } from "./transcript.js";
 
 const program = new Command();
 
@@ -29,7 +29,7 @@ program
       process.exitCode = 1;
       return;
     }
-    const seenMessageIds = new Set<string>();
+    const seenMessageIds = new Map<string, CountedUsage>();
     const seenToolIds = new Set<string>();
     const sessions = await Promise.all(
       transcripts.map((f) => parseTranscript(f, seenMessageIds, seenToolIds)),
@@ -50,7 +50,7 @@ program.action(async () => {
       process.exitCode = 1;
       return;
     }
-    const seenMessageIds = new Set<string>();
+    const seenMessageIds = new Map<string, CountedUsage>();
     const seenToolIds = new Set<string>();
     const sessions = await Promise.all(
       transcripts.map((f) => parseTranscript(f, seenMessageIds, seenToolIds)),

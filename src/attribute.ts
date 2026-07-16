@@ -15,6 +15,7 @@ export function addUsage(acc: UsageTotals, u: UsageTotals): void {
   acc.inputTokens += u.inputTokens;
   acc.cacheReadTokens += u.cacheReadTokens;
   acc.cacheCreationTokens += u.cacheCreationTokens;
+  acc.cacheCreation1hTokens = (acc.cacheCreation1hTokens ?? 0) + (u.cacheCreation1hTokens ?? 0);
   acc.outputTokens += u.outputTokens;
   acc.turns += u.turns;
 }

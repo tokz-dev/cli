@@ -17,7 +17,8 @@ export const PRICES: Record<string, ModelPrice> = {
   "claude-opus-4-8": { inputPerMTok: 5, outputPerMTok: 25 },
   "claude-opus-4-7": { inputPerMTok: 5, outputPerMTok: 25 },
   "claude-opus-4-6": { inputPerMTok: 5, outputPerMTok: 25 },
-  "claude-sonnet-5": { inputPerMTok: 3, outputPerMTok: 15 },
+  // introductory pricing ($2/$10) through 2026-08-31; sticker is $3/$15 after
+  "claude-sonnet-5": { inputPerMTok: 2, outputPerMTok: 10 },
   "claude-sonnet-4-6": { inputPerMTok: 3, outputPerMTok: 15 },
   "claude-haiku-4-5": { inputPerMTok: 1, outputPerMTok: 5 },
   // OpenAI (no cache-write charge; cached input 0.1x)
@@ -58,13 +59,20 @@ export function emptyUsage(): UsageTotals {
   return { inputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, outputTokens: 0, turns: 0 };
 }
 
+// Anthropic bills 1-hour cache writes at 2x input (5-minute writes at 1.25x).
+const CACHE_WRITE_1H_MULT = 2;
+
 export function costUsd(usage: UsageTotals, modelId: string): CostBreakdown {
   const p = resolvePrice(modelId);
   const readMult = p.cacheReadMult ?? DEFAULT_CACHE_READ_MULT;
   const writeMult = p.cacheWriteMult ?? DEFAULT_CACHE_WRITE_MULT;
   const input = (usage.inputTokens / 1e6) * p.inputPerMTok;
   const cacheRead = (usage.cacheReadTokens / 1e6) * p.inputPerMTok * readMult;
-  const cacheWrite = (usage.cacheCreationTokens / 1e6) * p.inputPerMTok * writeMult;
+  const write1h = Math.min(usage.cacheCreation1hTokens ?? 0, usage.cacheCreationTokens);
+  const write5m = usage.cacheCreationTokens - write1h;
+  const cacheWrite =
+    (write5m / 1e6) * p.inputPerMTok * writeMult +
+    (write1h / 1e6) * p.inputPerMTok * (p.cacheWriteMult ?? CACHE_WRITE_1H_MULT);
   const output = (usage.outputTokens / 1e6) * p.outputPerMTok;
   return { input, cacheRead, cacheWrite, output, total: input + cacheRead + cacheWrite + output };
 }
