@@ -11,10 +11,12 @@ analytics to explore; everything downstream (projects, dashboards,
 timeframes) is scoped to it.
 
 ```bash
-npx tokz                  # interactive TUI: browse projects, drill into charts
-npx tokz audit            # static report for the current project
-npx tokz audit --all      # static report across every project on this machine
-npx tokz audit --json     # machine-readable report
+npx @tokz/cli             # interactive TUI: browse projects, drill into charts
+npx @tokz/cli audit       # static report for the current project
+npx @tokz/cli audit --all # static report across every project on this machine
+
+npm i -g @tokz/cli        # installs the `tokz` command
+tokz                      # then just: tokz
 ```
 
 ## Interactive TUI
