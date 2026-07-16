@@ -35,6 +35,8 @@ export interface CostBreakdown {
 export interface AuditReport {
   sessionCount: number;
   spanDays: number;
+  spanStart?: string; // ISO date (YYYY-MM-DD) of earliest activity
+  spanEnd?: string; // ISO date (YYYY-MM-DD) of latest activity
   usageByModel: Record<string, UsageTotals>;
   costByModel: Record<string, CostBreakdown>;
   totalCostUsd: number;

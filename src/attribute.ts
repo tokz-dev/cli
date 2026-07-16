@@ -47,9 +47,13 @@ export function buildReport(sessions: SessionStats[], servers: McpServer[]): Aud
     return { ...srv, callsObserved, unused: callsObserved === 0 };
   });
 
+  const isoDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
   return {
     sessionCount: sessions.length,
     spanDays,
+    spanStart: Number.isFinite(earliest) ? isoDate(earliest) : undefined,
+    spanEnd: Number.isFinite(latest) ? isoDate(latest) : undefined,
     usageByModel,
     costByModel,
     totalCostUsd,

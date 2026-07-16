@@ -6,9 +6,13 @@ import type { AuditReport } from "./types.js";
 export function renderReport(report: AuditReport): string {
   const parts: string[] = [];
 
+  const span =
+    report.spanStart && report.spanEnd
+      ? `${report.spanStart} → ${report.spanEnd}`
+      : `${report.spanDays} days`;
   parts.push(
     pc.bold(
-      `tokz audit — ${report.sessionCount} sessions over ${report.spanDays} days: ` +
+      `tokz audit — ${report.sessionCount} sessions, ${span}: ` +
         `${usd(report.totalCostUsd)} API-equivalent cost, projected ${usd(report.monthlyProjectionUsd)}/month`,
     ),
   );

@@ -30,5 +30,8 @@ describe("buildReport", () => {
     expect(context7.unused).toBe(false);
     expect(craftspace.callsObserved).toBe(0);
     expect(craftspace.unused).toBe(true);
+
+    expect(report.spanStart).toBe("2026-07-01");
+    expect(report.spanEnd).toBe("2026-07-11");
   });
 });
