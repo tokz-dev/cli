@@ -3,26 +3,63 @@ import SelectInput from "ink-select-input";
 import type { ProjectAudit } from "../projects.js";
 import { usd } from "../format.js";
 import { bar } from "./bars.js";
+import { Banner } from "./Banner.js";
+
+const NAME_W = 40;
+const COST_W = 11;
+const BAR_W = 18;
 
 function shorten(p: string): string {
-  return p.length > 44 ? "…" + p.slice(-43) : p;
+  const clean = p.replace(/\\/g, "/");
+  return clean.length > NAME_W ? "…" + clean.slice(-(NAME_W - 1)) : clean;
+}
+
+function Indicator({ isSelected }: { isSelected?: boolean }) {
+  return <Text color="cyan">{isSelected ? "▸ " : "  "}</Text>;
+}
+
+function Item({ isSelected, label }: { isSelected?: boolean; label: string }) {
+  return (
+    <Text color={isSelected ? "cyan" : undefined} bold={isSelected}>
+      {label}
+    </Text>
+  );
 }
 
 export function ProjectList({ projects, onSelect }: { projects: ProjectAudit[]; onSelect: (index: number) => void }) {
   const total = projects.reduce((s, p) => s + p.report.totalCostUsd, 0);
   const max = Math.max(0, ...projects.map((p) => p.report.totalCostUsd));
+
   const items = projects.map((p, i) => ({
     key: p.id,
-    label: `${shorten(p.name).padEnd(45)} ${usd(p.report.totalCostUsd).padStart(9)}  ${bar(p.report.totalCostUsd, max, 16)}`,
     value: i,
+    label:
+      shorten(p.name).padEnd(NAME_W) +
+      usd(p.report.totalCostUsd).padStart(COST_W) +
+      "  " +
+      bar(p.report.totalCostUsd, max, BAR_W),
   }));
+
   return (
-    <Box flexDirection="column">
-      <Text bold>
-        tokz — {projects.length} projects · {usd(total)} API-equivalent
-      </Text>
-      <Text dimColor>↑↓ move · ⏎ open · q quit</Text>
-      <SelectInput items={items} onSelect={(item) => onSelect(item.value as number)} />
+    <Box flexDirection="column" paddingX={1}>
+      <Banner subtitle={`${projects.length} projects · ${usd(total)} API-equivalent · offline`} />
+
+      <Box>
+        <Text dimColor>{"  " + "PROJECT".padEnd(NAME_W) + "COST".padStart(COST_W) + "  SHARE"}</Text>
+      </Box>
+
+      <Box borderStyle="round" borderColor="gray" flexDirection="column" paddingX={1}>
+        <SelectInput
+          items={items}
+          onSelect={(item) => onSelect(item.value as number)}
+          indicatorComponent={Indicator}
+          itemComponent={Item}
+        />
+      </Box>
+
+      <Box marginTop={1}>
+        <Text dimColor>↑↓ navigate · ⏎ open · q quit</Text>
+      </Box>
     </Box>
   );
 }
