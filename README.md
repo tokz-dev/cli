@@ -3,10 +3,16 @@
 Audit where your coding agent's context window — and API dollars — actually go.
 
 ```bash
-npx tokz audit            # audit the current project's Claude Code sessions
-npx tokz audit --all      # audit every project on this machine
+npx tokz                  # interactive TUI: browse projects, drill into charts
+npx tokz audit            # static report for the current project
+npx tokz audit --all      # static report across every project on this machine
 npx tokz audit --json     # machine-readable report
 ```
+
+Bare `tokz` launches an interactive terminal UI (Ink): a cost-ranked project
+list you arrow through, each opening a tabbed dashboard (Overview / Models /
+Tools / Servers) with Unicode bar charts. Piped or non-interactive, it falls
+back to the static aggregate report automatically.
 
 Reads Claude Code transcripts (`~/.claude/projects/**/*.jsonl`) and MCP configs
 (`.mcp.json`, `~/.claude.json`). Reports real billed token usage per model
