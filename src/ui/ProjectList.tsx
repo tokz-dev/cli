@@ -72,9 +72,9 @@ export function ProjectList({
   }, [projects, sort, filter]);
 
   // Row 0 is the pinned "All projects" aggregate; projects start at 1.
-  const rowCount = filtered.length + (filter ? 0 : 1);
-  const clamped = Math.min(cursor, Math.max(0, rowCount - 1));
   const pinnedShown = !filter;
+  const rowCount = filtered.length + (pinnedShown ? 1 : 0);
+  const clamped = Math.min(cursor, Math.max(0, rowCount - 1));
 
   useInput((input, key) => {
     if (filtering) {
@@ -170,7 +170,7 @@ export function ProjectList({
       <Box borderStyle="round" borderColor="gray" flexDirection="column" paddingX={1}>
         {pinnedShown ? (
           <Text color={clamped === 0 ? theme.accent : undefined} bold={clamped === 0}>
-            {line("⊕ All projects", String(projects.reduce((s, p) => s + p.report.sessionCount, 0)), "", usd(total), "", clamped === 0)}
+            {line("All projects", String(projects.reduce((s, p) => s + p.report.sessionCount, 0)), "", usd(total), "", clamped === 0)}
           </Text>
         ) : null}
         {filtered.length === 0 ? <Text dimColor>no projects match "{filter}"</Text> : null}
