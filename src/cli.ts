@@ -58,12 +58,13 @@ program.action(async () => {
     process.exitCode = 1;
     return;
   }
-  const [{ render }, React, { App }] = await Promise.all([
+  const [{ render }, React, { App }, { Fullscreen }] = await Promise.all([
     import("ink"),
     import("react"),
     import("./ui/App.js"),
+    import("./ui/Fullscreen.js"),
   ]);
-  render(React.createElement(App, { projects }));
+  render(React.createElement(Fullscreen, null, React.createElement(App, { projects })));
 });
 
 program.parseAsync();

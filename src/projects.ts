@@ -5,14 +5,72 @@ import { glob } from "tinyglobby";
 import { buildReport } from "./attribute.js";
 import { sanitizeProjectPath } from "./discover.js";
 import { findMcpServers } from "./mcp.js";
+import { costUsd, emptyUsage } from "./pricing.js";
 import { parseTranscript } from "./transcript.js";
-import type { AuditReport } from "./types.js";
+import type { AuditReport, CostBreakdown, ServerAudit, UsageTotals } from "./types.js";
 
 export interface ProjectAudit {
   id: string;
   name: string;
   realPath?: string;
   report: AuditReport;
+}
+
+const DAY_MS = 86_400_000;
+
+// Merge every project's report into one aggregate report (for the "all projects" view).
+export function aggregate(projects: ProjectAudit[]): AuditReport {
+  const usageByModel: Record<string, UsageTotals> = {};
+  const toolCalls: Record<string, number> = {};
+  const servers: ServerAudit[] = [];
+  const seenServer = new Set<string>();
+  let sessionCount = 0;
+  let start: string | undefined;
+  let end: string | undefined;
+
+  for (const { report } of projects) {
+    sessionCount += report.sessionCount;
+    for (const [m, u] of Object.entries(report.usageByModel)) {
+      const acc = (usageByModel[m] ??= emptyUsage());
+      acc.inputTokens += u.inputTokens;
+      acc.cacheReadTokens += u.cacheReadTokens;
+      acc.cacheCreationTokens += u.cacheCreationTokens;
+      acc.outputTokens += u.outputTokens;
+      acc.turns += u.turns;
+    }
+    for (const [t, n] of Object.entries(report.toolCalls)) toolCalls[t] = (toolCalls[t] ?? 0) + n;
+    for (const s of report.servers) {
+      if (!seenServer.has(s.name)) {
+        seenServer.add(s.name);
+        servers.push({ ...s });
+      }
+    }
+    if (report.spanStart && (!start || report.spanStart < start)) start = report.spanStart;
+    if (report.spanEnd && (!end || report.spanEnd > end)) end = report.spanEnd;
+  }
+
+  const costByModel: Record<string, CostBreakdown> = {};
+  let totalCostUsd = 0;
+  for (const [m, u] of Object.entries(usageByModel)) {
+    costByModel[m] = costUsd(u, m);
+    totalCostUsd += costByModel[m].total;
+  }
+
+  const spanDays =
+    start && end ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / DAY_MS)) : 1;
+
+  return {
+    sessionCount,
+    spanDays,
+    spanStart: start,
+    spanEnd: end,
+    usageByModel,
+    costByModel,
+    totalCostUsd,
+    monthlyProjectionUsd: (totalCostUsd / spanDays) * 30,
+    toolCalls,
+    servers,
+  };
 }
 
 async function realPathsBySanitized(home: string): Promise<Map<string, string>> {

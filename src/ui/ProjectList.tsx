@@ -51,6 +51,7 @@ export function ProjectList({ projects, onSelect }: { projects: ProjectAudit[]; 
       <Box borderStyle="round" borderColor="gray" flexDirection="column" paddingX={1}>
         <SelectInput
           items={items}
+          limit={items.length}
           onSelect={(item) => onSelect(item.value as number)}
           indicatorComponent={Indicator}
           itemComponent={Item}

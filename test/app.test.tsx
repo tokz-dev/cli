@@ -19,15 +19,27 @@ const mk = (name: string, cost: number): ProjectAudit => ({
 });
 
 describe("App", () => {
-  it("lists projects by default", () => {
+  it("shows the landing menu with buttons by default", () => {
     const { lastFrame } = render(<App projects={[mk("/proj-a", 5), mk("/proj-b", 1)]} />);
     expect(lastFrame()).toContain("2 projects");
+    expect(lastFrame()).toContain("Browse projects");
+    expect(lastFrame()).toContain("Quit");
+  });
+
+  it("lists projects in the list view", () => {
+    const { lastFrame } = render(<App projects={[mk("/proj-a", 5), mk("/proj-b", 1)]} initialView="list" />);
     expect(lastFrame()).toContain("/proj-a");
   });
 
-  it("shows a project dashboard when one is selected", () => {
-    const { lastFrame } = render(<App projects={[mk("/proj-a", 5), mk("/proj-b", 1)]} initialSelected={0} />);
+  it("shows a project dashboard in the project view", () => {
+    const { lastFrame } = render(<App projects={[mk("/proj-a", 5), mk("/proj-b", 1)]} initialView="project" initialSelected={0} />);
     expect(lastFrame()).toContain("/proj-a");
+    expect(lastFrame()).toContain("API-equivalent");
+  });
+
+  it("shows an aggregate dashboard in the aggregate view", () => {
+    const { lastFrame } = render(<App projects={[mk("/proj-a", 5), mk("/proj-b", 1)]} initialView="aggregate" />);
+    expect(lastFrame()).toContain("All projects");
     expect(lastFrame()).toContain("API-equivalent");
   });
 
