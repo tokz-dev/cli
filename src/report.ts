@@ -1,9 +1,7 @@
 import Table from "cli-table3";
 import pc from "picocolors";
+import { usd, tok } from "./format.js";
 import type { AuditReport } from "./types.js";
-
-const usd = (n: number) => `$${n.toFixed(2)}`;
-const tok = (n: number) => n.toLocaleString("en-US");
 
 export function renderReport(report: AuditReport): string {
   const parts: string[] = [];
