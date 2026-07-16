@@ -1,0 +1,30 @@
+{
+  "name": "@tokz/cli",
+  "version": "0.1.0",
+  "description": "Audit where your coding agent's context window and API dollars go.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22.0.0" },
+  "bin": { "tokz": "./dist/cli.js" },
+  "files": ["dist"],
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "dev": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "cli-table3": "^0.6.5",
+    "commander": "^13.0.0",
+    "picocolors": "^1.1.0",
+    "tinyglobby": "^0.2.10",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
