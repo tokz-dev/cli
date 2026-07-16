@@ -25,7 +25,10 @@ program
       process.exitCode = 1;
       return;
     }
-    const sessions = await Promise.all(transcripts.map(parseTranscript));
+    // One shared set so a message.id counted in one transcript is not re-counted
+    // in another (resumed sessions copy prior messages into new files).
+    const seenMessageIds = new Set<string>();
+    const sessions = await Promise.all(transcripts.map((f) => parseTranscript(f, seenMessageIds)));
     const servers = opts.all ? [] : await findMcpServers(projectPath);
     const report = buildReport(sessions, servers);
     console.log(opts.json ? JSON.stringify(report, null, 2) : renderReport(report));

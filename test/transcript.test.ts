@@ -49,4 +49,42 @@ describe("parseTranscript", () => {
     expect(stats.firstTs).toBe("2026-07-01T10:00:00Z");
     expect(stats.lastTs).toBe("2026-07-01T11:00:00Z");
   });
+
+  it("counts usage once per message.id but tool_use on every line (block-split messages)", async () => {
+    // Claude Code splits one API message across lines (thinking/text/tool_use),
+    // each repeating the same usage. Usage must be counted once; each tool_use once.
+    const split = [
+      { type: "assistant", message: { id: "msg_1", model: "claude-opus-4-8", usage: { input_tokens: 100, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 50 }, content: [{ type: "thinking" }] } },
+      { type: "assistant", message: { id: "msg_1", model: "claude-opus-4-8", usage: { input_tokens: 100, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 50 }, content: [{ type: "tool_use", name: "Read" }] } },
+      { type: "assistant", message: { id: "msg_1", model: "claude-opus-4-8", usage: { input_tokens: 100, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 50 }, content: [{ type: "tool_use", name: "Bash" }] } },
+    ].map((o) => JSON.stringify(o)).join("\n");
+
+    const dir = mkdtempSync(join(tmpdir(), "tokz-split-"));
+    const file = join(dir, "s.jsonl");
+    writeFileSync(file, split);
+
+    const stats = await parseTranscript(file);
+    const u = stats.usageByModel["claude-opus-4-8"];
+    expect(u.inputTokens).toBe(100); // counted once, not 300
+    expect(u.outputTokens).toBe(50);
+    expect(u.turns).toBe(1);
+    expect(stats.toolCalls["Read"]).toBe(1);
+    expect(stats.toolCalls["Bash"]).toBe(1);
+  });
+
+  it("dedupes the same message.id across files via a shared set (resumed sessions)", async () => {
+    const mk = (dirPrefix: string) => {
+      const dir = mkdtempSync(join(tmpdir(), dirPrefix));
+      const file = join(dir, "s.jsonl");
+      writeFileSync(file, JSON.stringify({ type: "assistant", message: { id: "msg_dup", model: "claude-opus-4-8", usage: { input_tokens: 100, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 50 }, content: [] } }));
+      return file;
+    };
+    const a = mk("tokz-r1-");
+    const b = mk("tokz-r2-");
+    const seen = new Set<string>();
+    const sa = await parseTranscript(a, seen);
+    const sb = await parseTranscript(b, seen);
+    const total = (sa.usageByModel["claude-opus-4-8"]?.inputTokens ?? 0) + (sb.usageByModel["claude-opus-4-8"]?.inputTokens ?? 0);
+    expect(total).toBe(100); // counted once across both files, not 200
+  });
 });

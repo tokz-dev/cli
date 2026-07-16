@@ -11,7 +11,13 @@ export function renderReport(report: AuditReport): string {
   parts.push(
     pc.bold(
       `tokz audit — ${report.sessionCount} sessions over ${report.spanDays} days: ` +
-        `${usd(report.totalCostUsd)} spent, projected ${usd(report.monthlyProjectionUsd)}/month`,
+        `${usd(report.totalCostUsd)} API-equivalent cost, projected ${usd(report.monthlyProjectionUsd)}/month`,
+    ),
+  );
+  parts.push(
+    pc.dim(
+      "Cost = what these tokens would bill at Anthropic API pay-as-you-go rates. " +
+        "On a Pro/Max subscription you pay a flat fee, not this — treat it as value received, not a bill.",
     ),
   );
 

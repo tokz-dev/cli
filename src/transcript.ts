@@ -8,6 +8,7 @@ const AssistantLine = z.object({
   type: z.literal("assistant"),
   timestamp: z.string().optional(),
   message: z.object({
+    id: z.string().optional(),
     model: z.string().optional(),
     usage: z
       .object({
@@ -23,7 +24,14 @@ const AssistantLine = z.object({
   }),
 });
 
-export async function parseTranscript(file: string): Promise<SessionStats> {
+// Claude Code writes one transcript line per content block (thinking/text/tool_use),
+// each repeating the SAME message.usage; resumed sessions also copy prior messages
+// into new files. Both inflate token totals, so usage is counted once per message.id.
+// `seenMessageIds` must be shared across every file in a run for cross-file dedup.
+export async function parseTranscript(
+  file: string,
+  seenMessageIds: Set<string> = new Set(),
+): Promise<SessionStats> {
   const stats: SessionStats = { file, usageByModel: {}, toolCalls: {} };
   const rl = createInterface({ input: createReadStream(file, "utf8"), crlfDelay: Infinity });
 
@@ -44,7 +52,11 @@ export async function parseTranscript(file: string): Promise<SessionStats> {
       stats.lastTs = timestamp;
     }
     const model = message.model ?? "unknown";
-    if (message.usage) {
+    // Dedupe usage by message.id: block-split lines and resumed-session copies
+    // repeat identical usage. Lines without an id (rare) are always counted.
+    const firstSeen = !message.id || !seenMessageIds.has(message.id);
+    if (message.id) seenMessageIds.add(message.id);
+    if (message.usage && firstSeen) {
       const u = (stats.usageByModel[model] ??= emptyUsage());
       u.inputTokens += message.usage.input_tokens;
       u.cacheCreationTokens += message.usage.cache_creation_input_tokens;
