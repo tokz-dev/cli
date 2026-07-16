@@ -1,4 +1,7 @@
+import { createRequire } from "node:module";
 import { Command } from "commander";
+
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 import { buildReport } from "./attribute.js";
 import { findTranscripts } from "./discover.js";
 import { findMcpServers } from "./mcp.js";
@@ -10,7 +13,7 @@ const program = new Command();
 program
   .name("tokz")
   .description("Audit where your coding agent's context window and API dollars go.")
-  .version("0.1.0");
+  .version(version);
 
 program
   .command("audit")
