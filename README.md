@@ -29,9 +29,13 @@ From there:
      model, top tools, unused-server warning.
   2. **Models** — per-model token table (input / cache read / cache write /
      output / turns), cost and share, plus the total cost split.
-  3. **Tools** — top tools by call count with share; MCP tools highlighted.
-  4. **Servers** — every configured MCP server, calls observed, and whether
-     it's dead weight in your context window.
+  3. **Tools** — top tools ranked by estimated cost (each turn's bill split
+     across the tools that turn called) with call counts and share; MCP tools
+     highlighted.
+  4. **Servers** — every MCP server with calls observed and estimated cost.
+     Covers both configured servers (`.mcp.json`, `~/.claude.json`) and ones
+     only visible in transcripts — plugin MCP servers and externally managed
+     configs — plus whether each is dead weight in your context window.
   5. **Sessions** — costliest sessions with date, wall-clock length, turns,
      tool calls, and dominant model.
   6. **Activity** — daily cost bars with turn counts, average per active day.

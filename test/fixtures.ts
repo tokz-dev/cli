@@ -9,6 +9,7 @@ export function mkReport(overrides: Partial<AuditReport> = {}): AuditReport {
     totalCostUsd: 0,
     monthlyProjectionUsd: 0,
     toolCalls: {},
+    toolCostUsd: {},
     servers: [],
     daily: [],
     sessions: [],

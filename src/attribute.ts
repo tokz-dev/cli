@@ -115,6 +115,7 @@ export function buildReport(
   }
   const usageByModel: Record<string, UsageTotals> = {};
   const toolCalls: Record<string, number> = {};
+  const toolCostUsd: Record<string, number> = {};
   const dailyUsage: Record<string, Record<string, UsageTotals>> = {};
   let earliest = Infinity;
   let latest = -Infinity;
@@ -125,6 +126,9 @@ export function buildReport(
     }
     for (const [name, n] of Object.entries(s.toolCalls)) {
       toolCalls[name] = (toolCalls[name] ?? 0) + n;
+    }
+    for (const [name, c] of Object.entries(s.toolCostUsd ?? {})) {
+      toolCostUsd[name] = (toolCostUsd[name] ?? 0) + c;
     }
     for (const [date, byModel] of Object.entries(s.dailyUsage ?? {})) {
       const day = (dailyUsage[date] ??= {});
@@ -150,15 +154,41 @@ export function buildReport(
       ? Math.max(1, Math.round((latest - earliest) / DAY_MS))
       : 1;
 
-  const mcpCalls = (server: string) =>
-    Object.entries(toolCalls)
+  const mcpSum = (record: Record<string, number>, server: string) =>
+    Object.entries(record)
       .filter(([name]) => name.startsWith(`mcp__${server}__`))
       .reduce((sum, [, n]) => sum + n, 0);
 
   const serverAudits = servers.map((srv) => {
-    const callsObserved = mcpCalls(srv.name);
-    return { ...srv, callsObserved, unused: callsObserved === 0 };
+    const callsObserved = mcpSum(toolCalls, srv.name);
+    return {
+      ...srv,
+      callsObserved,
+      unused: callsObserved === 0,
+      estCostUsd: mcpSum(toolCostUsd, srv.name),
+      configured: true,
+    };
   });
+
+  // Servers seen in transcripts but absent from every config we read — plugin
+  // MCP servers and servers configured elsewhere. Surface them too.
+  const configured = new Set(servers.map((s) => s.name));
+  const observed = new Set(
+    Object.keys(toolCalls)
+      .map((name) => /^mcp__(.+)__[^_]/.exec(name)?.[1])
+      .filter((s): s is string => !!s),
+  );
+  for (const name of [...observed].sort()) {
+    if ([...configured].some((c) => name === c || name.startsWith(`${c}__`))) continue;
+    serverAudits.push({
+      name,
+      source: "observed in transcripts (plugin or external config)",
+      callsObserved: mcpSum(toolCalls, name),
+      unused: false,
+      estCostUsd: mcpSum(toolCostUsd, name),
+      configured: false,
+    });
+  }
 
   const isoDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
@@ -172,6 +202,7 @@ export function buildReport(
     totalCostUsd,
     monthlyProjectionUsd: (totalCostUsd / spanDays) * 30,
     toolCalls,
+    toolCostUsd,
     servers: serverAudits,
     daily: buildDaily(dailyUsage),
     sessions: sessions

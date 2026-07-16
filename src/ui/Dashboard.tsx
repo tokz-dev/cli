@@ -160,17 +160,20 @@ function Models({ r, cols }: { r: AuditReport; cols: number }) {
 }
 
 function Tools({ r, chartW, cols }: { r: AuditReport; chartW: number; cols: number }) {
+  const costs = r.toolCostUsd ?? {};
+  const anyCost = Object.values(costs).some((c) => c > 0);
   const rows = Object.entries(r.toolCalls)
-    .sort(([, a], [, b]) => b - a)
+    .map(([n, calls]) => ({ name: n, calls, cost: costs[n] ?? 0 }))
+    .sort((a, b) => (anyCost ? b.cost - a.cost : b.calls - a.calls))
     .slice(0, 15)
-    .map(([n, c]) => ({
-      label: n,
-      value: c,
-      display: compact(c),
-      color: n.startsWith("mcp__") ? theme.mcp : theme.accent,
+    .map((t) => ({
+      label: t.name,
+      value: anyCost ? t.cost : t.calls,
+      display: anyCost ? `${usd(t.cost)} · ${compact(t.calls)} calls` : compact(t.calls),
+      color: t.name.startsWith("mcp__") ? theme.mcp : theme.accent,
     }));
   if (rows.length === 0) return <Text dimColor>no tool calls</Text>;
-  const maxLabel = Math.max(12, Math.min(40, cols - chartW - 16));
+  const maxLabel = Math.max(12, Math.min(40, cols - chartW - (anyCost ? 30 : 16)));
   const totalCalls = Object.values(r.toolCalls).reduce((s, n) => s + n, 0);
   const mcpCalls = Object.entries(r.toolCalls)
     .filter(([n]) => n.startsWith("mcp__"))
@@ -178,41 +181,71 @@ function Tools({ r, chartW, cols }: { r: AuditReport; chartW: number; cols: numb
   return (
     <Box flexDirection="column">
       <BarChart rows={rows} width={chartW} showShare maxLabel={maxLabel} />
-      <Box marginTop={1}>
+      <Box marginTop={1} flexDirection="column">
         <Text dimColor>
           {compact(totalCalls)} calls across {Object.keys(r.toolCalls).length} tools ·{" "}
           <Text color={theme.mcp}>magenta = MCP</Text> ({pct(totalCalls > 0 ? mcpCalls / totalCalls : 0)} of calls)
         </Text>
+        {anyCost ? (
+          <Text dimColor>est. cost = each turn's bill split across the tools that turn called</Text>
+        ) : null}
       </Box>
     </Box>
   );
 }
 
-function Servers({ r }: { r: AuditReport }) {
+function Servers({ r, cols }: { r: AuditReport; cols: number }) {
   if (r.servers.length === 0)
-    return <Text dimColor>no MCP servers configured for this project</Text>;
-  const nameW = Math.max(...r.servers.map((s) => s.name.length));
-  const sorted = [...r.servers].sort((a, b) => b.callsObserved - a.callsObserved);
+    return <Text dimColor>no MCP servers configured or observed for this project</Text>;
+  // "plugin_craftspace_craftspace" (tool-name form) -> "craftspace:craftspace"
+  const pretty = (s: AuditReport["servers"][number]) =>
+    !s.configured && s.name.startsWith("plugin_")
+      ? s.name.replace(/^plugin_/, "").replace("_", ":")
+      : s.name;
+  const nameW = Math.min(30, Math.max(...r.servers.map((s) => pretty(s).length), 6));
+  const sorted = [...r.servers].sort((a, b) => (b.estCostUsd ?? 0) - (a.estCostUsd ?? 0));
+  const clipName = (n: string) => (n.length > nameW ? n.slice(0, nameW - 1) + "…" : n);
+  const wide = cols >= 80;
   return (
     <Box flexDirection="column">
+      <Text dimColor>
+        {"SERVER".padEnd(nameW)}
+        {"CALLS".padStart(8)}
+        {"EST COST".padStart(10)}
+        {"  STATUS  "}
+        {wide ? "SOURCE" : ""}
+      </Text>
       {sorted.map((s) => (
         <Text key={s.name}>
-          <Text color={theme.accent}>{s.name.padEnd(nameW)}</Text>
+          <Text color={s.configured ? theme.accent : theme.mcp}>{clipName(pretty(s)).padEnd(nameW)}</Text>
+          {compact(s.callsObserved).padStart(8)}
+          <Text bold>{usd(s.estCostUsd ?? 0).padStart(10)}</Text>
           {"  "}
-          {compact(s.callsObserved).padStart(6)} calls{"  "}
-          {s.unused ? <Text color={theme.bad}>● UNUSED</Text> : <Text color={theme.good}>● used  </Text>}
-          {"  "}
-          <Text dimColor>{s.source.replace(/\\/g, "/")}</Text>
+          {s.unused ? (
+            <Text color={theme.bad}>● UNUSED</Text>
+          ) : (
+            <Text color={theme.good}>● used  </Text>
+          )}
+          {wide ? <Text dimColor>{"  " + (s.configured ? s.source.replace(/\\/g, "/") : "plugin / external config")}</Text> : null}
         </Text>
       ))}
-      {sorted.some((s) => s.unused) ? (
-        <Box marginTop={1}>
+      <Box marginTop={1} flexDirection="column">
+        {sorted.some((s) => s.unused) ? (
           <Text dimColor>
             Unused servers still load their tool schemas into every request — dead weight in the
             context window. Consider removing them.
           </Text>
-        </Box>
-      ) : null}
+        ) : null}
+        {sorted.some((s) => !s.configured) ? (
+          <Text dimColor>
+            <Text color={theme.mcp}>magenta</Text> servers were seen in transcripts but live outside
+            .mcp.json / ~/.claude.json (plugins, managed configs).
+          </Text>
+        ) : null}
+        {sorted.some((s) => (s.estCostUsd ?? 0) > 0) ? (
+          <Text dimColor>est. cost = each turn's bill split across the tools that turn called</Text>
+        ) : null}
+      </Box>
     </Box>
   );
 }
@@ -320,7 +353,7 @@ export function Dashboard({
         {tab === 0 ? <Overview r={r} chartW={chartW} /> : null}
         {tab === 1 ? <Models r={r} cols={cols} /> : null}
         {tab === 2 ? <Tools r={r} chartW={chartW} cols={cols} /> : null}
-        {tab === 3 ? <Servers r={r} /> : null}
+        {tab === 3 ? <Servers r={r} cols={cols} /> : null}
         {tab === 4 ? <Sessions r={r} cols={cols} /> : null}
         {tab === 5 ? <Activity r={r} chartW={chartW} cols={cols} /> : null}
       </Box>

@@ -21,7 +21,11 @@ const project: ProjectAudit = {
     totalCostUsd: 22,
     monthlyProjectionUsd: 66,
     toolCalls: { Read: 30, Bash: 12, mcp__ctx__q: 3 },
-    servers: [{ name: "ctx", source: "x", callsObserved: 3, unused: false }, { name: "dead", source: "y", callsObserved: 0, unused: true }],
+    toolCostUsd: { Read: 10, Bash: 6, mcp__ctx__q: 6 },
+    servers: [
+      { name: "ctx", source: "x", callsObserved: 3, unused: false, estCostUsd: 6, configured: true },
+      { name: "dead", source: "y", callsObserved: 0, unused: true, estCostUsd: 0, configured: true },
+    ],
     daily: [
       { date: "2026-07-01", costUsd: 10, inputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0, outputTokens: 1, turns: 2 },
       { date: "2026-07-10", costUsd: 12, inputTokens: 1, cacheReadTokens: 0, cacheCreationTokens: 0, outputTokens: 1, turns: 3 },

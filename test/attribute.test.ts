@@ -12,6 +12,7 @@ const session: SessionStats = {
   lastTs: "2026-07-11T00:00:00Z",
   usageByModel: opusDay(1_000_000, 2_000_000),
   toolCalls: { "mcp__context7__query-docs": 3, Read: 10 },
+  toolCostUsd: { "mcp__context7__query-docs": 1.5, Read: 2 },
   dailyUsage: {
     "2026-07-01": opusDay(400_000, 1_000_000),
     "2026-07-11": opusDay(600_000, 1_000_000),
@@ -41,6 +42,27 @@ describe("buildReport", () => {
     expect(report.spanEnd).toBe("2026-07-11");
   });
 
+  it("attributes estimated cost to servers and surfaces unconfigured (plugin) servers", () => {
+    const withPlugin: SessionStats = {
+      ...session,
+      toolCalls: { ...session.toolCalls, mcp__plugin_craftspace_craftspace__search_pages: 4 },
+      toolCostUsd: { ...session.toolCostUsd, mcp__plugin_craftspace_craftspace__search_pages: 0.8 },
+    };
+    const report = buildReport([withPlugin], [{ name: "context7", source: "x" }]);
+
+    const ctx = report.servers.find((s) => s.name === "context7")!;
+    expect(ctx.estCostUsd).toBeCloseTo(1.5);
+    expect(ctx.configured).toBe(true);
+
+    const plugin = report.servers.find((s) => s.name === "plugin_craftspace_craftspace")!;
+    expect(plugin.configured).toBe(false);
+    expect(plugin.callsObserved).toBe(4);
+    expect(plugin.estCostUsd).toBeCloseTo(0.8);
+    expect(plugin.unused).toBe(false);
+
+    expect(report.toolCostUsd.Read).toBeCloseTo(2);
+  });
+
   it("builds daily stats sorted ascending", () => {
     const report = buildReport([session], []);
     expect(report.daily.map((d) => d.date)).toEqual(["2026-07-01", "2026-07-11"]);
@@ -62,6 +84,7 @@ describe("buildReport", () => {
       lastTs: "2026-07-02T01:00:00Z",
       usageByModel: opusDay(100_000),
       toolCalls: { Read: 2 },
+      toolCostUsd: {},
       dailyUsage: {},
     };
     const report = buildReport([cheap, session], []);

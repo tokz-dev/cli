@@ -50,6 +50,18 @@ describe("parseTranscript", () => {
     expect(stats.lastTs).toBe("2026-07-01T11:00:00Z");
   });
 
+  it("splits each turn's cost across that turn's tool calls", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokz-cost-"));
+    const file = join(dir, "session.jsonl");
+    writeFileSync(file, lines);
+
+    const stats = await parseTranscript(file);
+    // turn 1 (opus-4-8): 100 in + 50 cache-wr + 30k cache-rd + 200 out = $0.0208125, split 2 ways
+    // turn 2: 10 in + 20 out = $0.00055, all to Read
+    expect(stats.toolCostUsd["mcp__context7__query-docs"]).toBeCloseTo(0.01040625, 6);
+    expect(stats.toolCostUsd["Read"]).toBeCloseTo(0.01040625 + 0.00055, 6);
+  });
+
   it("counts usage once per message.id but tool_use on every line (block-split messages)", async () => {
     // Claude Code splits one API message across lines (thinking/text/tool_use),
     // each repeating the same usage. Usage must be counted once; each tool_use once.

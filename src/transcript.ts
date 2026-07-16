@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { z } from "zod";
-import { emptyUsage } from "./pricing.js";
+import { costUsd, emptyUsage } from "./pricing.js";
 import type { SessionStats } from "./types.js";
 
 const AssistantLine = z.object({
@@ -32,7 +32,7 @@ export async function parseTranscript(
   seenMessageIds: Set<string> = new Set(),
   seenToolIds: Set<string> = new Set(),
 ): Promise<SessionStats> {
-  const stats: SessionStats = { file, usageByModel: {}, toolCalls: {}, dailyUsage: {} };
+  const stats: SessionStats = { file, usageByModel: {}, toolCalls: {}, toolCostUsd: {}, dailyUsage: {} };
   const rl = createInterface({ input: createReadStream(file, "utf8"), crlfDelay: Infinity });
 
   for await (const line of rl) {
@@ -56,6 +56,7 @@ export async function parseTranscript(
     const firstSeen = !message.id || !seenMessageIds.has(message.id);
     if (message.id) seenMessageIds.add(message.id);
     // "<synthetic>" marks Claude Code-injected placeholder turns with no real usage.
+    let turnCost = 0;
     if (message.usage && firstSeen && model !== "<synthetic>") {
       const accs = [(stats.usageByModel[model] ??= emptyUsage())];
       if (timestamp) {
@@ -69,7 +70,18 @@ export async function parseTranscript(
         u.outputTokens += message.usage.output_tokens;
         u.turns += 1;
       }
+      turnCost = costUsd(
+        {
+          inputTokens: message.usage.input_tokens,
+          cacheCreationTokens: message.usage.cache_creation_input_tokens,
+          cacheReadTokens: message.usage.cache_read_input_tokens,
+          outputTokens: message.usage.output_tokens,
+          turns: 1,
+        },
+        model,
+      ).total;
     }
+    const turnTools: string[] = [];
     for (const block of message.content ?? []) {
       if (block.type !== "tool_use" || !block.name) continue;
       if (block.id) {
@@ -77,6 +89,14 @@ export async function parseTranscript(
         seenToolIds.add(block.id);
       }
       stats.toolCalls[block.name] = (stats.toolCalls[block.name] ?? 0) + 1;
+      turnTools.push(block.name);
+    }
+    // Attribute this turn's cost evenly to the tools it invoked (estimate).
+    if (turnCost > 0 && turnTools.length > 0) {
+      const share = turnCost / turnTools.length;
+      for (const name of turnTools) {
+        stats.toolCostUsd[name] = (stats.toolCostUsd[name] ?? 0) + share;
+      }
     }
   }
   return stats;

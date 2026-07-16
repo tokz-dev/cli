@@ -14,6 +14,11 @@ export interface SessionStats {
   lastTs?: string;
   usageByModel: Record<string, UsageTotals>;
   toolCalls: Record<string, number>;
+  /**
+   * Estimated cost per tool: each turn's cost split evenly across the tools
+   * that turn invoked. A heuristic — tokens bill per turn, not per tool.
+   */
+  toolCostUsd: Record<string, number>;
   /** per ISO date (YYYY-MM-DD), per model */
   dailyUsage: Record<string, Record<string, UsageTotals>>;
 }
@@ -46,6 +51,10 @@ export interface McpServer {
 export interface ServerAudit extends McpServer {
   callsObserved: number;
   unused: boolean;
+  /** estimated cost of turns that called this server's tools */
+  estCostUsd: number;
+  /** false when the server was seen in transcripts but not in any config we read (e.g. plugin MCP servers) */
+  configured: boolean;
 }
 
 export interface CostBreakdown {
@@ -66,6 +75,8 @@ export interface AuditReport {
   totalCostUsd: number;
   monthlyProjectionUsd: number;
   toolCalls: Record<string, number>;
+  /** estimated cost per tool (turn cost split across that turn's tool calls) */
+  toolCostUsd: Record<string, number>;
   servers: ServerAudit[];
   daily: DailyStat[]; // sorted ascending by date
   sessions: SessionSummary[]; // sorted by cost, highest first

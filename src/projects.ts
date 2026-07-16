@@ -56,8 +56,8 @@ const DAY_MS = 86_400_000;
 export function aggregate(projects: ProjectAudit[]): AuditReport {
   const usageByModel: Record<string, UsageTotals> = {};
   const toolCalls: Record<string, number> = {};
-  const servers: ServerAudit[] = [];
-  const seenServer = new Set<string>();
+  const toolCostUsd: Record<string, number> = {};
+  const serverByName = new Map<string, ServerAudit>();
   const dailyByDate = new Map<string, DailyStat>();
   const sessions: AuditReport["sessions"] = [];
   let sessionCount = 0;
@@ -72,10 +72,18 @@ export function aggregate(projects: ProjectAudit[]): AuditReport {
       addUsage((usageByModel[m] ??= emptyUsage()), u);
     }
     for (const [t, n] of Object.entries(report.toolCalls)) toolCalls[t] = (toolCalls[t] ?? 0) + n;
+    for (const [t, c] of Object.entries(report.toolCostUsd ?? {})) {
+      toolCostUsd[t] = (toolCostUsd[t] ?? 0) + c;
+    }
     for (const s of report.servers) {
-      if (!seenServer.has(s.name)) {
-        seenServer.add(s.name);
-        servers.push({ ...s });
+      const acc = serverByName.get(s.name);
+      if (!acc) {
+        serverByName.set(s.name, { ...s });
+      } else {
+        acc.callsObserved += s.callsObserved;
+        acc.estCostUsd += s.estCostUsd ?? 0;
+        acc.unused = acc.callsObserved === 0;
+        acc.configured = acc.configured || s.configured;
       }
     }
     for (const d of report.daily ?? []) {
@@ -116,7 +124,8 @@ export function aggregate(projects: ProjectAudit[]): AuditReport {
     totalCostUsd,
     monthlyProjectionUsd: (totalCostUsd / spanDays) * 30,
     toolCalls,
-    servers,
+    toolCostUsd,
+    servers: [...serverByName.values()],
     daily: [...dailyByDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1)),
     sessions: sessions.sort((a, b) => b.costUsd - a.costUsd),
     cacheSavingsUsd: cacheSavings(usageByModel),

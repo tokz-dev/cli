@@ -16,8 +16,8 @@ const report: AuditReport = mkReport({
   monthlyProjectionUsd: 39.375,
   toolCalls: { Read: 30, "mcp__context7__query-docs": 2 },
   servers: [
-    { name: "context7", source: "x", callsObserved: 2, unused: false },
-    { name: "craftspace", source: "y", callsObserved: 0, unused: true },
+    { name: "context7", source: "x", callsObserved: 2, unused: false, estCostUsd: 1.2, configured: true },
+    { name: "craftspace", source: "y", callsObserved: 0, unused: true, estCostUsd: 0, configured: true },
   ],
 });
 

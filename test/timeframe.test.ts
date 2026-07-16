@@ -15,6 +15,7 @@ const session: SessionStats = {
   lastTs: "2026-07-16T10:00:00Z",
   usageByModel: usage(3_000_000),
   toolCalls: { Read: 9 },
+  toolCostUsd: { Read: 15 },
   dailyUsage: {
     "2026-07-10": usage(1_000_000),
     "2026-07-15": usage(1_000_000),
