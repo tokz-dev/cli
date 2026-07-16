@@ -87,10 +87,6 @@ export function Dashboard({ project, initialTab = 0 }: { project: ProjectAudit; 
       <Box borderStyle="round" borderColor="gray" flexDirection="column" paddingX={1} marginTop={0}>
         <TabBody tab={tab} r={r} />
       </Box>
-
-      <Box marginTop={1}>
-        <Text dimColor>1–4 switch tab · esc back · q quit</Text>
-      </Box>
     </Box>
   );
 }

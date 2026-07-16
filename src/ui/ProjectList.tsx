@@ -57,10 +57,6 @@ export function ProjectList({ projects, onSelect }: { projects: ProjectAudit[]; 
           itemComponent={Item}
         />
       </Box>
-
-      <Box marginTop={1}>
-        <Text dimColor>↑↓ navigate · ⏎ open · q quit</Text>
-      </Box>
     </Box>
   );
 }

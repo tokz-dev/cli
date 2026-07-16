@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, useApp, useInput } from "ink";
+import { Box, Text, useApp, useInput } from "ink";
 import type { ProjectAudit } from "../projects.js";
 import { aggregate } from "../projects.js";
 import { Menu, type MenuAction } from "./Menu.js";
@@ -7,6 +7,13 @@ import { ProjectList } from "./ProjectList.js";
 import { Dashboard } from "./Dashboard.js";
 
 export type View = "menu" | "list" | "project" | "aggregate";
+
+const HINTS: Record<View, string> = {
+  menu: "↑↓ navigate · ⏎ select · q quit",
+  list: "↑↓ navigate · ⏎ open · esc back · q quit",
+  project: "1–4 switch tab · esc back · q quit",
+  aggregate: "1–4 switch tab · esc back · q quit",
+};
 
 export function App({
   projects,
@@ -31,8 +38,9 @@ export function App({
 
   if (projects.length === 0) return <Text>No Claude Code transcripts found.</Text>;
 
+  let content: React.ReactNode;
   if (view === "menu") {
-    return (
+    content = (
       <Menu
         projects={projects}
         onSelect={(action: MenuAction) => {
@@ -41,23 +49,30 @@ export function App({
         }}
       />
     );
-  }
-
-  if (view === "aggregate") {
-    return <Dashboard project={{ id: "__all__", name: "All projects", report: aggregate(projects) }} />;
-  }
-
-  if (view === "project") {
-    return <Dashboard project={projects[selected]} />;
+  } else if (view === "aggregate") {
+    content = <Dashboard project={{ id: "__all__", name: "All projects", report: aggregate(projects) }} />;
+  } else if (view === "project") {
+    content = <Dashboard project={projects[selected]} />;
+  } else {
+    content = (
+      <ProjectList
+        projects={projects}
+        onSelect={(i) => {
+          setSelected(i);
+          setView("project");
+        }}
+      />
+    );
   }
 
   return (
-    <ProjectList
-      projects={projects}
-      onSelect={(i) => {
-        setSelected(i);
-        setView("project");
-      }}
-    />
+    <Box flexDirection="column" flexGrow={1}>
+      <Box flexDirection="column" flexGrow={1}>
+        {content}
+      </Box>
+      <Box paddingX={1}>
+        <Text dimColor>{HINTS[view]}</Text>
+      </Box>
+    </Box>
   );
 }

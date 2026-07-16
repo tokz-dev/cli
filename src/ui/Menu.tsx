@@ -49,9 +49,6 @@ export function Menu({ projects, onSelect }: { projects: ProjectAudit[]; onSelec
         <Text dimColor>{range}</Text>
       </Box>
       <SelectInput items={items} onSelect={(item) => onSelect(item.value)} indicatorComponent={Indicator} itemComponent={Button} />
-      <Box marginTop={1}>
-        <Text dimColor>↑↓ navigate · ⏎ select · q quit</Text>
-      </Box>
     </Box>
   );
 }
