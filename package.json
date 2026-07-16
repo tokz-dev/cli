@@ -16,12 +16,17 @@
   "dependencies": {
     "cli-table3": "^0.6.5",
     "commander": "^13.0.0",
+    "ink": "^5.0.1",
+    "ink-select-input": "^6.0.0",
     "picocolors": "^1.1.0",
+    "react": "^18.3.1",
     "tinyglobby": "^0.2.10",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/react": "^18.3.12",
+    "ink-testing-library": "^4.0.0",
     "tsup": "^8.3.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
