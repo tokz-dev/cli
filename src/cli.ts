@@ -35,4 +35,35 @@ program
     console.log(opts.json ? JSON.stringify(report, null, 2) : renderReport(report));
   });
 
+program.action(async () => {
+  if (!process.stdout.isTTY) {
+    const transcripts = await findTranscripts(undefined);
+    if (transcripts.length === 0) {
+      console.error("No Claude Code transcripts found.");
+      process.exitCode = 1;
+      return;
+    }
+    const seenMessageIds = new Set<string>();
+    const seenToolIds = new Set<string>();
+    const sessions = await Promise.all(
+      transcripts.map((f) => parseTranscript(f, seenMessageIds, seenToolIds)),
+    );
+    console.log(renderReport(buildReport(sessions, [])));
+    return;
+  }
+  const { loadProjects } = await import("./projects.js");
+  const projects = await loadProjects();
+  if (projects.length === 0) {
+    console.error("No Claude Code transcripts found.");
+    process.exitCode = 1;
+    return;
+  }
+  const [{ render }, React, { App }] = await Promise.all([
+    import("ink"),
+    import("react"),
+    import("./ui/App.js"),
+  ]);
+  render(React.createElement(App, { projects }));
+});
+
 program.parseAsync();
