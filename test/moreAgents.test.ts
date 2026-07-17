@@ -147,7 +147,7 @@ describe("kimi adapter", () => {
 });
 
 describe("registry", () => {
-  it("registers every ccusage agent, parsed or detect-only", () => {
+  it("registers every supported agent, parsed or detect-only", () => {
     const ids = ADAPTERS.map((a) => a.id);
     for (const id of ["claude", "codex", "opencode", "gemini", "qwen", "droid", "codebuff", "openclaw", "kimi", "pi", "goose", "hermes", "kilo", "copilot", "amp"]) {
       expect(ids).toContain(id);

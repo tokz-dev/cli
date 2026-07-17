@@ -23,7 +23,7 @@ describe("pricing", () => {
   });
 
   it("prices gpt-5.6 tiers by longest prefix, not the gpt-5 fallback", () => {
-    // Verified against ccusage/LiteLLM on real rollouts: 74,691 in + 365,312
+    // Verified against LiteLLM pricing on real rollouts: 74,691 in + 365,312
     // cached + 1,728 out on gpt-5.6-terra bills $0.3039755.
     expect(resolvePrice("gpt-5.6-terra").inputPerMTok).toBe(2.5);
     expect(resolvePrice("gpt-5.6-sol").outputPerMTok).toBe(30);

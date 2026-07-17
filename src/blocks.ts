@@ -4,7 +4,7 @@ import type { UsageTotals } from "./types.js";
 
 // Claude usage limits run in rolling 5h windows: first message opens a block
 // (start floored to the hour), it lasts 5h, next activity after expiry opens a
-// new one. Same model ccusage uses.
+// new one.
 
 export interface UsageEvent {
   ts: number; // ms epoch
@@ -18,7 +18,7 @@ export interface Block {
   firstTs: number;
   lastTs: number;
   usageByModel: Record<string, UsageTotals>;
-  totalTokens: number; // all token kinds, matching ccusage's block totals
+  totalTokens: number; // sum of all token kinds in the block
   costUsd: number;
   active: boolean;
 }

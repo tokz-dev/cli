@@ -11,7 +11,7 @@ function freshHome(): string {
 // eslint-disable-next-line no-control-regex
 const stripAnsi = (s: string): string => s.replace(/\[[0-9;]*m/g, "");
 
-describe("statusline render (ccusage parity)", () => {
+describe("statusline render", () => {
   const base = {
     session_id: "s",
     transcript_path: "/nope/none.jsonl", // no transcript -> no today/block noise
@@ -31,11 +31,11 @@ describe("statusline render (ccusage parity)", () => {
     expect(out).toContain("🧠 52.0k (26%)");
   });
 
-  it("cost-source both shows cc and ccusage side by side", async () => {
+  it("cost-source both shows the Claude Code and token-based costs side by side", async () => {
     const out = stripAnsi(
       await statusline(base, Date.parse("2026-07-17T12:00:00Z"), freshHome(), { costSource: "both" }),
     );
-    expect(out).toContain("($0.23 cc / $0.00 ccusage) session");
+    expect(out).toContain("($0.23 cc / $0.00 calc) session");
   });
 
   it("omits effort and context when Claude Code doesn't send them", async () => {

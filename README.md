@@ -2,7 +2,7 @@
 
 Audit where your coding agents' context windows — and API dollars — actually go.
 
-Supports the same agent coverage as ccusage. Fully parsed: **Claude Code**
+Supports a broad set of coding agents. Fully parsed: **Claude Code**
 (`~/.claude/projects`), **OpenAI Codex CLI** (`~/.codex/sessions`),
 **OpenCode**, **Gemini CLI** (`~/.gemini/tmp`), **Qwen Code** (`~/.qwen`),
 **Droid / Factory** (`~/.factory/sessions`), **Codebuff** (`~/.config/manicode*`),
@@ -41,8 +41,7 @@ window, `--json` for raw output.
 
 ## Statusline for Claude Code
 
-`tokz statusline` renders one compact line for Claude Code's status bar, in
-the same format ccusage uses:
+`tokz statusline` renders one compact line for Claude Code's status bar:
 
 ```text
 🤖 Fable 5 (high) | 💰 $0.23 session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
@@ -53,9 +52,10 @@ Model with reasoning-effort level, session cost, today's total, active
 green/yellow/red by tokens/min), and context usage with percentage (colored
 by how full the window is). Session cost, context size, and effort come
 straight from Claude Code's hook payload when present; today's total and the
-block come from your local transcripts. `--cost-source auto|cc|ccusage|both`
-picks where the session cost comes from (`both` prints
-`($0.25 cc / $0.23 ccusage)`). One command wires it up:
+block come from your local transcripts. `--cost-source auto|cc|calc|both`
+picks where the session cost comes from — `cc` is Claude Code's own recorded
+cost, `calc` recomputes from tokens, `both` prints `($0.25 cc / $0.23 calc)`.
+One command wires it up:
 
 ```bash
 tokz statusline enable    # writes the hook into ~/.claude/settings.json

@@ -10,11 +10,12 @@ import { compact, shortModel, usd } from "./format.js";
 import { costUsd } from "./pricing.js";
 import { parseTranscript, type CountedUsage } from "./transcript.js";
 
-// `tokz statusline` renders one line for Claude Code's statusLine hook, in
-// ccusage's format. Claude Code pipes session JSON on stdin; session cost,
-// context, and effort come from that payload, today's total and the active
-// block from local transcripts. Kept fast: only ~6h of transcripts parsed,
-// pricing from the disk cache (never a network fetch).
+// `tokz statusline` renders one line for Claude Code's statusLine hook:
+//   🤖 Model (effort) | 💰 $x session / $y today / $z block (Nm left) | 🔥 $/hr | 🧠 ctx (P%)
+// Claude Code pipes session JSON on stdin; session cost, context, and effort
+// come from that payload, today's total and the active block from local
+// transcripts. Kept fast: only ~6h of transcripts parsed, pricing from the disk
+// cache (never a network fetch).
 
 interface StatuslineInput {
   session_id?: string;
@@ -30,8 +31,14 @@ interface StatuslineInput {
   exceeds_200k_tokens?: boolean;
 }
 
-/** How the session cost is sourced, mirroring ccusage's --cost-source. */
-export type CostSource = "auto" | "cc" | "ccusage" | "both";
+/**
+ * How the session cost is sourced:
+ *  - "cc": Claude Code's own recorded cost from the hook payload
+ *  - "calc": tokz's token-based calc at current pricing
+ *  - "auto": cc when present, else calc
+ *  - "both": show both side by side
+ */
+export type CostSource = "auto" | "cc" | "calc" | "both";
 
 export interface StatuslineOptions {
   costSource?: CostSource;
@@ -39,7 +46,7 @@ export interface StatuslineOptions {
 
 const CONTEXT_WINDOW = 200_000;
 const LOOKBACK_MS = 6 * 60 * 60 * 1000;
-// Burn-rate color thresholds in tokens/minute (ccusage parity).
+// Burn-rate color thresholds in tokens/minute.
 const BURN_MODERATE = 2000;
 const BURN_HIGH = 5000;
 
@@ -94,12 +101,12 @@ export async function statusline(
 
   const today = dayKey(now);
   let todayCost = 0;
-  // ccusage token-based cost for this session (from its transcript).
-  let ccusageSessionCost: number | undefined;
+  // tokz's token-based cost for this session (recomputed from its transcript).
+  let calcSessionCost: number | undefined;
   for (const s of sessions) {
     for (const [model, u] of Object.entries(s.dailyUsage[today] ?? {})) todayCost += costUsd(u, model).total;
     if (input.transcript_path && s.file === input.transcript_path) {
-      ccusageSessionCost = Object.entries(s.usageByModel).reduce((sum, [m, u]) => sum + costUsd(u, m).total, 0);
+      calcSessionCost = Object.entries(s.usageByModel).reduce((sum, [m, u]) => sum + costUsd(u, m).total, 0);
     }
   }
   const ccCost = input.cost?.total_cost_usd; // Claude Code's own figure
@@ -112,7 +119,7 @@ export async function statusline(
   const effort = input.effort?.level;
   const parts = [`🤖 ${modelName}${effort ? ` (${effort})` : ""}`];
 
-  parts.push(`💰 ${moneySegment(costSource, ccCost, ccusageSessionCost, todayCost, active, now)}`);
+  parts.push(`💰 ${moneySegment(costSource, ccCost, calcSessionCost, todayCost, active, now)}`);
 
   if (rate) {
     const tpm = rate.tokensPerMinute;
@@ -135,21 +142,21 @@ export async function statusline(
 function moneySegment(
   source: CostSource,
   ccCost: number | undefined,
-  ccusageCost: number | undefined,
+  calcCost: number | undefined,
   todayCost: number,
   active: { costUsd: number; end: number } | undefined,
   now: number,
 ): string {
   let session: string;
   if (source === "both") {
-    session = `(${usd(ccCost ?? 0)} cc / ${usd(ccusageCost ?? 0)} ccusage) session`;
+    session = `(${usd(ccCost ?? 0)} cc / ${usd(calcCost ?? 0)} calc) session`;
   } else {
     const pick =
       source === "cc"
         ? ccCost
-        : source === "ccusage"
-          ? ccusageCost
-          : (ccCost ?? ccusageCost); // auto: prefer Claude Code's figure
+        : source === "calc"
+          ? calcCost
+          : (ccCost ?? calcCost); // auto: prefer Claude Code's figure
     session = `${usd(pick ?? 0)} session`;
   }
   const block = active
