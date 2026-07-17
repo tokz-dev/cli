@@ -118,18 +118,33 @@ program
 program
   .command("statusline")
   .description("compact usage line for Claude Code's statusLine hook (reads hook JSON on stdin)")
-  .action(async () => {
+  .argument("[action]", '"enable" writes the hook into ~/.claude/settings.json, "disable" removes it')
+  .action(async (action: string | undefined) => {
     const globals = applyGlobals();
+    const sl = await import("./statusline.js");
+    if (action === "enable" || action === "disable") {
+      try {
+        console.log(action === "enable" ? await sl.enableStatusline() : await sl.disableStatusline());
+      } catch (err) {
+        console.error(`Could not update settings: ${err instanceof Error ? err.message : err}`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+    if (action !== undefined) {
+      console.error(`Unknown action "${action}" — use "enable" or "disable".`);
+      process.exitCode = 1;
+      return;
+    }
     // Never fetch from the statusline path — it must render instantly.
     await initPricing({ ...globals, offline: true });
-    const [{ statusline, readStdin }] = await Promise.all([import("./statusline.js")]);
     let input: unknown = {};
     try {
-      input = JSON.parse(await readStdin());
+      input = JSON.parse(await sl.readStdin());
     } catch {
       // no/invalid stdin: still render what we can
     }
-    console.log(await statusline(input as Record<string, never>));
+    console.log(await sl.statusline(input as Record<string, never>));
   });
 
 program.action(async () => {

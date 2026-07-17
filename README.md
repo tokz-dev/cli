@@ -39,12 +39,19 @@ window, `--json` for raw output.
 
 `tokz statusline` renders one compact line for Claude Code's status bar —
 model, session cost, today's total, active block cost with time left, burn
-rate, and context usage with percentage. Wire it up in
-`~/.claude/settings.json`:
+rate, and context usage with percentage. One command wires it up:
+
+```bash
+tokz statusline enable    # writes the hook into ~/.claude/settings.json
+tokz statusline disable   # removes it (only if it's tokz's)
+```
+
+`enable` preserves everything else in your settings file (and refuses to
+touch one it can't parse); it's equivalent to:
 
 ```json
 {
-  "statusLine": { "type": "command", "command": "npx @tokz/cli statusline" }
+  "statusLine": { "type": "command", "command": "npx -y @tokz/cli statusline" }
 }
 ```
 

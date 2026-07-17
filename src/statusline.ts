@@ -1,4 +1,6 @@
-import { readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import pc from "picocolors";
 import { buildBlocks, burnRate, type UsageEvent } from "./blocks.js";
 import { fmtMs } from "./blocksReport.js";
@@ -121,4 +123,49 @@ export async function readStdin(): Promise<string> {
   let data = "";
   for await (const chunk of process.stdin) data += chunk;
   return data;
+}
+
+export const STATUSLINE_COMMAND = "npx -y @tokz/cli statusline";
+
+function settingsPath(home: string = homedir()): string {
+  return join(home, ".claude", "settings.json");
+}
+
+/** Missing file -> {}. Existing-but-unparseable file -> throws, so we never clobber it. */
+async function readSettings(file: string): Promise<Record<string, unknown>> {
+  let raw: string;
+  try {
+    raw = await readFile(file, "utf8");
+  } catch {
+    return {};
+  }
+  const parsed = JSON.parse(raw); // let a corrupt file throw
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error(`${file} is not a JSON object`);
+  return parsed;
+}
+
+/** Wire `tokz statusline` into Claude Code's statusLine hook. Returns a human summary. */
+export async function enableStatusline(home?: string): Promise<string> {
+  const file = settingsPath(home);
+  const settings = await readSettings(file);
+  const prev = settings.statusLine as { command?: string } | undefined;
+  if (prev?.command === STATUSLINE_COMMAND) return `Already enabled in ${file}.`;
+  settings.statusLine = { type: "command", command: STATUSLINE_COMMAND };
+  await mkdir(join(file, ".."), { recursive: true });
+  await writeFile(file, `${JSON.stringify(settings, null, 2)}\n`);
+  const note = prev?.command ? ` (replaced previous statusLine: ${prev.command})` : "";
+  return `Statusline enabled — Claude Code will run "${STATUSLINE_COMMAND}".${note}\nRestart Claude Code (or start a new session) to see it.`;
+}
+
+export async function disableStatusline(home?: string): Promise<string> {
+  const file = settingsPath(home);
+  const settings = await readSettings(file);
+  const prev = settings.statusLine as { command?: string } | undefined;
+  if (!prev) return `No statusLine configured in ${file}; nothing to do.`;
+  if (prev.command !== undefined && !prev.command.includes("tokz") && !prev.command.includes("@tokz/cli"))
+    return `statusLine in ${file} is "${prev.command}" — not tokz, leaving it alone.`;
+  delete settings.statusLine;
+  await writeFile(file, `${JSON.stringify(settings, null, 2)}\n`);
+  return `Statusline disabled — removed from ${file}.`;
 }
