@@ -63,9 +63,7 @@ export async function initPricing(opts?: {
   let cached: PriceCache | undefined;
   try {
     cached = JSON.parse(await readFile(file, "utf8")) as PriceCache;
-  } catch {
-    // no cache yet
-  }
+  } catch {}
   const fresh = cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS;
   if (cached && (fresh || opts?.offline)) {
     setLivePrices(cached.prices);
@@ -83,9 +81,7 @@ export async function initPricing(opts?: {
     try {
       await mkdir(dir, { recursive: true });
       await writeFile(file, JSON.stringify({ fetchedAt: Date.now(), prices } satisfies PriceCache));
-    } catch {
-      // cache write is best-effort
-    }
+    } catch {}
     return "live";
   } catch {
     if (cached) {

@@ -77,9 +77,7 @@ async function readHistory(root: string): Promise<HistoryEntry[]> {
       if (!line.trim()) continue;
       try {
         out.push(JSON.parse(line) as HistoryEntry);
-      } catch {
-        // skip malformed lines
-      }
+      } catch {}
     }
     return out;
   } catch {

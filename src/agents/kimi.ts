@@ -67,9 +67,7 @@ export const kimiAdapter: AgentAdapter = {
       try {
         await access(join(root, "sessions"));
         return true;
-      } catch {
-        // try next
-      }
+      } catch {}
     }
     return false;
   },

@@ -64,13 +64,9 @@ async function lastContextTokens(transcriptPath: string): Promise<number | undef
             u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0)
           );
         }
-      } catch {
-        // keep scanning
-      }
+      } catch {}
     }
-  } catch {
-    // no transcript
-  }
+  } catch {}
   return undefined;
 }
 
@@ -88,9 +84,7 @@ export async function statusline(
       try {
         if ((await stat(f)).mtimeMs >= now - Math.max(LOOKBACK_MS, msSinceMidnight(now) + 60_000))
           recent.push(f);
-      } catch {
-        // unreadable file
-      }
+      } catch {}
     }),
   );
 

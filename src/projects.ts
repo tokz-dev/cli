@@ -80,7 +80,6 @@ export function groupSessionsByCwd(agentId: string, sessions: SessionStats[]): P
 
 const DAY_MS = 86_400_000;
 
-// Merge every project's report into one aggregate report (for the "all projects" view).
 export function aggregate(projects: ProjectAudit[]): AuditReport {
   const usageByModel: Record<string, UsageTotals> = {};
   const toolCalls: Record<string, number> = {};

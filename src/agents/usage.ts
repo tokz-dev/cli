@@ -39,9 +39,7 @@ export async function readJsonl(file: string): Promise<unknown[]> {
     if (!line.trim()) continue;
     try {
       out.push(JSON.parse(line));
-    } catch {
-      // skip malformed line
-    }
+    } catch {}
   }
   return out;
 }

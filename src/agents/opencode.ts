@@ -59,7 +59,6 @@ export async function loadOpencodeProjects(
   );
   if (messageFiles.length === 0) return [];
 
-  // session id -> project directory
   const sessionDir = new Map<string, string>();
   const projectWorktree = new Map<string, string>();
   for (const f of await glob(["project/*.json"], { cwd: storage, absolute: true }).catch(() => [])) {

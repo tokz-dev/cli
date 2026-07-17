@@ -34,9 +34,7 @@ function detectOnly(
         try {
           await access(join(home, ...parts));
           return true;
-        } catch {
-          // try next candidate
-        }
+        } catch {}
       }
       return false;
     },

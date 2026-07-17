@@ -75,9 +75,7 @@ export const openclawAdapter: AgentAdapter = {
       try {
         await access(root);
         return true;
-      } catch {
-        // try next
-      }
+      } catch {}
     }
     return false;
   },

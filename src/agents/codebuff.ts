@@ -30,9 +30,7 @@ async function parseFile(file: string): Promise<SessionStats> {
   let fileTs: string | undefined;
   try {
     fileTs = (await stat(file)).mtime.toISOString();
-  } catch {
-    // no mtime
-  }
+  } catch {}
   const records: UsageRecord[] = [];
   for (const msg of arr) {
     if (!isAssistant(msg)) continue;
@@ -81,9 +79,7 @@ export const codebuffAdapter: AgentAdapter = {
       try {
         await access(root);
         return true;
-      } catch {
-        // try next
-      }
+      } catch {}
     }
     return false;
   },

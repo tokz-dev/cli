@@ -40,9 +40,7 @@ export async function loadGooseProjects(
       let model = "goose-unknown";
       try {
         model = (JSON.parse(String(row.model_config_json ?? "{}")).model_name as string) || model;
-      } catch {
-        // keep default
-      }
+      } catch {}
       records.push({
         model,
         ts: toIso(row.created_at),
@@ -67,9 +65,7 @@ export const gooseAdapter: AgentAdapter = {
       try {
         await access(db);
         return true;
-      } catch {
-        // try next
-      }
+      } catch {}
     }
     return false;
   },

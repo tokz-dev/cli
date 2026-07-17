@@ -21,9 +21,7 @@ async function parseFile(file: string): Promise<SessionStats> {
   if (!ts) {
     try {
       ts = (await stat(file)).mtime.toISOString();
-    } catch {
-      // no timestamp
-    }
+    } catch {}
   }
   return sessionFromRecords(file, undefined, [
     {
