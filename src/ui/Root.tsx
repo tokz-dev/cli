@@ -47,7 +47,7 @@ export function Root() {
   if (!agents) {
     return (
       <Box flexDirection="column" paddingX={1}>
-        <Banner subtitle="where your agents' tokens and dollars go · 100% offline" />
+        <Banner subtitle="where your agents' tokens and dollars go" />
         <Box flexDirection="column">
           <Text>
             <Text color={theme.accent}>{SPINNER[frame % SPINNER.length]}</Text> Parsing

@@ -47,7 +47,7 @@ export function Menu({
   return (
     <Box flexDirection="column">
       <Banner
-        subtitle={`${agentName ? `${agentName} · ` : ""}where your agent's tokens and dollars go · 100% offline`}
+        subtitle={`${agentName ? `${agentName} · ` : ""}where your agent's tokens and dollars go`}
       />
 
       <Box marginBottom={1}>
