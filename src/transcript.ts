@@ -1,5 +1,4 @@
-import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
+import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import type { UsageEvent } from "./blocks.js";
 import { dayKey } from "./dates.js";
@@ -56,11 +55,36 @@ export async function parseTranscript(
   seenToolIds: Set<string> = new Set(),
   events?: UsageEvent[],
 ): Promise<SessionStats> {
-  const stats: SessionStats = { file, usageByModel: {}, toolCalls: {}, toolCostUsd: {}, dailyUsage: {} };
-  const rl = createInterface({ input: createReadStream(file, "utf8"), crlfDelay: Infinity });
+  let content: string;
+  try {
+    content = await readFile(file, "utf8");
+  } catch {
+    content = "";
+  }
+  return parseTranscriptContent(content, file, seenMessages, seenToolIds, events);
+}
 
-  for await (const line of rl) {
-    if (!line.trim()) continue;
+/**
+ * Process already-read transcript text. Split out from parseTranscript so a
+ * caller can read many files in parallel (I/O-bound) and then feed the contents
+ * through here sequentially — keeping the shared seen-maps race-free, since all
+ * mutation happens synchronously in this function.
+ */
+export function parseTranscriptContent(
+  content: string,
+  file: string,
+  seenMessages: Map<string, CountedUsage> = new Map(),
+  seenToolIds: Set<string> = new Set(),
+  events?: UsageEvent[],
+): SessionStats {
+  const stats: SessionStats = { file, usageByModel: {}, toolCalls: {}, toolCostUsd: {}, dailyUsage: {} };
+
+  for (const line of content.split("\n")) {
+    // Only assistant lines carry usage; every one contains "assistant" in its
+    // type. Skipping the rest avoids JSON.parse on the bulk of the transcript
+    // (user turns, tool results). A non-assistant line that happens to contain
+    // the word still just fails the schema below — correctness is unchanged.
+    if (line.length < 2 || !line.includes("assistant")) continue;
     let raw: unknown;
     try {
       raw = JSON.parse(line);

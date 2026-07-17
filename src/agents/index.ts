@@ -79,16 +79,16 @@ export async function loadAllAgents(
   home?: string,
   onProgress?: (agent: string, p: LoadProgress) => void,
 ): Promise<AgentData[]> {
-  const out: AgentData[] = [];
-  for (const adapter of ADAPTERS) {
-    const detected = await adapter.detect(home);
-    let projects: AgentData["projects"] = [];
-    if (detected && adapter.supported) {
-      projects = await adapter
-        .loadProjects(home, (p) => onProgress?.(adapter.name, p))
-        .catch(() => []);
-    }
-    out.push({ adapter, detected, projects });
-  }
-  return out;
+  // Adapters are independent (no shared state), so detect + load them all
+  // concurrently. Order of ADAPTERS is preserved for the picker.
+  return Promise.all(
+    ADAPTERS.map(async (adapter): Promise<AgentData> => {
+      const detected = await adapter.detect(home).catch(() => false);
+      let projects: AgentData["projects"] = [];
+      if (detected && adapter.supported) {
+        projects = await adapter.loadProjects(home, (p) => onProgress?.(adapter.name, p)).catch(() => []);
+      }
+      return { adapter, detected, projects };
+    }),
+  );
 }

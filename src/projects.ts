@@ -6,7 +6,7 @@ import { addUsage, buildReport, cacheHitRate, cacheSavings } from "./attribute.j
 import { sanitizeProjectPath } from "./discover.js";
 import { findMcpServers } from "./mcp.js";
 import { costUsd, emptyUsage } from "./pricing.js";
-import { parseTranscript, type CountedUsage } from "./transcript.js";
+import { parseTranscriptContent, type CountedUsage } from "./transcript.js";
 import type {
   AuditReport,
   CostBreakdown,
@@ -203,12 +203,23 @@ export async function loadProjects(
   const seenToolIds = new Set<string>();
   let parsed = 0;
 
+  // Read every transcript in parallel (I/O-bound), then process them
+  // sequentially below so the shared dedup maps stay race-free.
+  const contents = new Map<string, string>();
+  await Promise.all(
+    files.map((f) =>
+      readFile(f, "utf8")
+        .then((c) => void contents.set(f, c))
+        .catch(() => void contents.set(f, "")),
+    ),
+  );
+
   const out: ProjectAudit[] = [];
   for (const [dir, dirFiles] of byDir) {
     onProgress?.({ parsed, total: files.length, currentProject: realMap.get(dir) ?? dir });
     const sessions = [];
     for (const f of dirFiles) {
-      sessions.push(await parseTranscript(f, seenMessageIds, seenToolIds));
+      sessions.push(parseTranscriptContent(contents.get(f) ?? "", f, seenMessageIds, seenToolIds));
       parsed += 1;
       onProgress?.({ parsed, total: files.length, currentProject: realMap.get(dir) ?? dir });
     }
