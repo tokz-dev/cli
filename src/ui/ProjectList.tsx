@@ -5,6 +5,7 @@ import { usd, relativeDate } from "../format.js";
 import { bar } from "./bars.js";
 import { theme } from "./theme.js";
 import { useTerminalSize } from "./useTerminalSize.js";
+import { windowOffset } from "./viewport.js";
 
 const COST_W = 10;
 const SESS_W = 6;
@@ -122,7 +123,11 @@ export function ProjectList({
   const fixed = COST_W + (showSess ? SESS_W : 0) + (showWhen ? WHEN_W : 0) + (showBar ? BAR_W + 2 : 0);
   const nameW = Math.max(10, Math.min(42, avail - fixed - 2));
   const barW = showBar ? Math.min(BAR_W + Math.max(0, avail - fixed - 2 - nameW), 30) : 0;
-  const visibleRows = Math.max(4, Math.min(20, rows - 10));
+  // Rows consumed by chrome around the scrolling body: outer padding (2),
+  // heading + subtitle (2), column header (1), border top/bottom (2), the
+  // pinned "All projects" row (1), and the "…more" indicator (1).
+  const CHROME_ROWS = 9;
+  const visibleRows = Math.max(3, rows - CHROME_ROWS);
 
   const clip = (s: string) => (s.length > nameW ? s.slice(0, nameW - 1) + "…" : s);
 
@@ -130,7 +135,7 @@ export function ProjectList({
   const max = Math.max(0, ...projects.map((p) => p.report.totalCostUsd));
 
   const projCursor = clamped - (pinnedShown ? 1 : 0);
-  const offset = Math.max(0, Math.min(projCursor - Math.floor(visibleRows / 2), filtered.length - visibleRows));
+  const offset = windowOffset(Math.max(0, projCursor), filtered.length, visibleRows);
   const visible = filtered.slice(offset, offset + visibleRows);
 
   const line = (label: string, sess: string, when: string, cost: string, share: string, selected: boolean) =>
