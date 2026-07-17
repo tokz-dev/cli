@@ -4,10 +4,14 @@ Audit where your coding agents' context windows — and API dollars — actually
 
 Supports multiple agentic coders: **Claude Code** (`~/.claude/projects`),
 **OpenAI Codex CLI** (`~/.codex/sessions` rollout files, cumulative
-token-count deltas), and **OpenCode** (`~/.local/share/opencode/storage`).
-Antigravity and Cursor CLI are detected and listed with the reason they
-can't be parsed (Antigravity stores no token usage on disk — its sessions
-are binary protobuf; Cursor uses SQLite). The TUI opens with an agent picker — choose which agent's
+token-count deltas), **OpenCode** (`~/.local/share/opencode/storage`), and
+**Antigravity CLI** (`~/.gemini/antigravity-cli`). Antigravity stores no
+token counts on disk, so its numbers are *estimates*: per-model turn counts
+are read from the conversation databases' generation-metadata records,
+projects and dates from `history.jsonl`, and tokens are derived from
+conversation content size (~4 chars/token) — the UI labels it "estimated"
+everywhere. Cursor CLI is detected and listed with the reason it can't be
+parsed yet. The TUI opens with an agent picker — choose which agent's
 analytics to explore; everything downstream (projects, dashboards,
 timeframes) is scoped to it.
 

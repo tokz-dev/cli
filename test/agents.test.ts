@@ -119,16 +119,55 @@ describe("loadOpencodeProjects", () => {
   });
 });
 
-describe("detect-only adapters", () => {
-  it("detects Antigravity by its conversations dir and explains why it's unsupported", async () => {
-    const antigravity = ADAPTERS.find((a) => a.id === "antigravity")!;
-    expect(antigravity.supported).toBe(false);
-    expect(antigravity.unsupportedReason).toContain("no token usage");
+describe("antigravity adapter", () => {
+  function fakeDb(): Buffer {
+    const turn = (name?: string) =>
+      Buffer.concat([
+        Buffer.from([0, 1, 2]),
+        Buffer.from("used_claude_conservative"),
+        Buffer.from([0]),
+        Buffer.from("false"),
+        Buffer.from([0, 0]),
+        Buffer.from(name ?? "zzzz"),
+        Buffer.from([0, 3]),
+      ]);
+    return Buffer.concat([
+      turn("Gemini 3.1 Pro (High)"),
+      turn("Gemini 3.1 Pro (High)"),
+      turn(), // unlabeled -> attributed to dominant model
+      Buffer.from("z".repeat(8000)), // conversation content -> ~2000 estimated tokens
+      Buffer.from([0]),
+    ]);
+  }
 
+  it("estimates per-model usage from conversation dbs and history.jsonl", async () => {
     const home = mkdtempSync(join(tmpdir(), "tokz-ag-"));
+    const antigravity = ADAPTERS.find((a) => a.id === "antigravity")!;
+    expect(antigravity.supported).toBe(true);
+    expect(antigravity.estimated).toBe(true);
     expect(await antigravity.detect(home)).toBe(false);
-    mkdirSync(join(home, ".gemini", "antigravity", "conversations"), { recursive: true });
+
+    const root = join(home, ".gemini", "antigravity-cli");
+    mkdirSync(join(root, "conversations"), { recursive: true });
+    writeFileSync(join(root, "conversations", "abc.db"), fakeDb());
+    writeFileSync(
+      join(root, "history.jsonl"),
+      JSON.stringify({
+        display: "hi",
+        timestamp: 1784286552893,
+        workspace: "/home/me/rocket",
+        conversationId: "abc",
+      }) + "\n",
+    );
+
     expect(await antigravity.detect(home)).toBe(true);
-    expect(await antigravity.loadProjects(home)).toEqual([]);
+    const projects = await antigravity.loadProjects(home);
+    expect(projects).toHaveLength(1);
+    expect(projects[0].label).toBe("rocket");
+    const u = projects[0].report.usageByModel["gemini-3.1-pro"];
+    expect(u.turns).toBe(3);
+    expect(u.inputTokens).toBeGreaterThan(1000);
+    expect(u.outputTokens).toBeGreaterThan(100);
+    expect(projects[0].report.totalCostUsd).toBeGreaterThan(0);
   });
 });

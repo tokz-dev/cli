@@ -32,6 +32,8 @@ export const PRICES: Record<string, ModelPrice> = {
   "o4-mini": { inputPerMTok: 1.1, outputPerMTok: 4.4, cacheWriteMult: 0, cacheReadMult: 0.25 },
   o3: { inputPerMTok: 2, outputPerMTok: 8, cacheWriteMult: 0, cacheReadMult: 0.25 },
   // Google
+  "gemini-3.1-pro": { inputPerMTok: 2, outputPerMTok: 12, cacheWriteMult: 0 },
+  "gemini-3.5-flash": { inputPerMTok: 1.5, outputPerMTok: 9, cacheWriteMult: 0 },
   "gemini-2.5-pro": { inputPerMTok: 1.25, outputPerMTok: 10, cacheWriteMult: 0 },
   "gemini-2.5-flash": { inputPerMTok: 0.3, outputPerMTok: 2.5, cacheWriteMult: 0 },
 };

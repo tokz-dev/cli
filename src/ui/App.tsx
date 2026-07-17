@@ -70,7 +70,8 @@ export function App({
     [activeProjects, timeframe],
   );
   const totals = useMemo(() => aggregate(scoped), [scoped]);
-  const agentName = agentList[agentIdx]?.adapter.name ?? "";
+  const activeAdapter = agentList[agentIdx]?.adapter;
+  const agentName = activeAdapter ? activeAdapter.name + (activeAdapter.estimated ? " (estimated)" : "") : "";
 
   useInput((input, key) => {
     if (help) {

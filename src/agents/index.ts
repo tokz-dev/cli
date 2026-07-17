@@ -2,6 +2,7 @@ import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { LoadProgress } from "../projects.js";
+import { antigravityAdapter } from "./antigravity.js";
 import { claudeAdapter } from "./claude.js";
 import { codexAdapter } from "./codex.js";
 import { opencodeAdapter } from "./opencode.js";
@@ -30,22 +31,14 @@ function detectOnly(
   };
 }
 
-// Detected but not parseable offline: Antigravity (formerly Gemini CLI's slot)
-// stores conversations as binary protobuf with no token counts — usage is only
-// reachable via the running editor's language-server RPC; Cursor CLI stores
-// sessions in SQLite.
+// Antigravity stores no token counts on disk, so its adapter reports
+// size-derived estimates (flagged as such in the UI). Cursor CLI stays
+// detect-only: sessions live in SQLite we don't parse yet.
 export const ADAPTERS: AgentAdapter[] = [
   claudeAdapter,
   codexAdapter,
   opencodeAdapter,
-  detectOnly(
-    "antigravity",
-    "Antigravity",
-    "no token usage stored on disk (binary protobuf sessions)",
-    ".gemini",
-    "antigravity",
-    "conversations",
-  ),
+  antigravityAdapter,
   detectOnly("cursor", "Cursor CLI", "sessions live in SQLite; parsing not supported yet", ".cursor", "chats"),
 ];
 

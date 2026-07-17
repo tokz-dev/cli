@@ -9,7 +9,9 @@ function status(a: AgentData): { text: string; color?: string; dim?: boolean } {
   if (a.projects.length > 0) {
     const cost = a.projects.reduce((s, p) => s + p.report.totalCostUsd, 0);
     const sessions = a.projects.reduce((s, p) => s + p.report.sessionCount, 0);
-    return { text: `${a.projects.length} projects · ${sessions} sessions · ${usd(cost)}` };
+    const est = a.adapter.estimated ? `~` : "";
+    const tail = a.adapter.estimated ? " · estimated" : "";
+    return { text: `${a.projects.length} projects · ${sessions} sessions · ${est}${usd(cost)}${tail}` };
   }
   if (a.detected && !a.adapter.supported)
     return {

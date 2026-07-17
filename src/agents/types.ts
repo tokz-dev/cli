@@ -12,6 +12,10 @@ export interface AgentAdapter {
   supported: boolean;
   /** shown in the picker for detected-but-unsupported agents (why there's no data) */
   unsupportedReason?: string;
+  /** true when this agent's numbers are estimates, not exact billed usage */
+  estimated?: boolean;
+  /** shown wherever this agent's data appears, explaining the estimate */
+  estimateNote?: string;
 }
 
 export interface AgentData {
