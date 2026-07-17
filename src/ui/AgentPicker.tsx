@@ -49,11 +49,12 @@ export function AgentPicker({
 
   // Fit the whole picker inside the fixed-height screen: reserve the fixed
   // chrome, give the banner what's left, and shrink it (full -> tiny -> none)
-  // before ever clipping the title or the agent list. Overflow would scroll
-  // the top (title + first rows) off the alt-screen.
-  // Fixed chrome: Fullscreen padding (2) + "Pick an agent" (1) + list marginTop
-  // (1) + border top/bottom (2) + more/less indicator (1).
-  const FIXED_CHROME = 7;
+  // before ever clipping the title or the agent list. Even a one-row overflow
+  // corrupts Ink's alt-screen redraw (garbled banner, colliding rows).
+  // Fixed chrome: Fullscreen padding (2) + App footer hint (1) + "Pick an agent"
+  // (1) + list marginTop (1) + border top/bottom (2) + indicator (1) + 1 row of
+  // safety headroom so we never render right up to the last line.
+  const FIXED_CHROME = 9;
   const LIST_MIN = 3;
   const forcedTiny = cols < 40;
   const bannerBudget = rows - FIXED_CHROME - LIST_MIN;
@@ -67,7 +68,7 @@ export function AgentPicker({
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Banner subtitle="where your agents' tokens and dollars go · 100% offline" mode={bannerMode} />
+      <Banner subtitle="where your agents' tokens and dollars go" mode={bannerMode} />
       <Text bold color={theme.accent}>
         Pick an agent
       </Text>

@@ -123,10 +123,12 @@ export function ProjectList({
   const fixed = COST_W + (showSess ? SESS_W : 0) + (showWhen ? WHEN_W : 0) + (showBar ? BAR_W + 2 : 0);
   const nameW = Math.max(10, Math.min(42, avail - fixed - 2));
   const barW = showBar ? Math.min(BAR_W + Math.max(0, avail - fixed - 2 - nameW), 30) : 0;
-  // Rows consumed by chrome around the scrolling body: outer padding (2),
-  // heading + subtitle (2), column header (1), border top/bottom (2), the
-  // pinned "All projects" row (1), and the "…more" indicator (1).
-  const CHROME_ROWS = 9;
+  // Rows consumed by chrome around the scrolling body: Fullscreen padding (2),
+  // App footer hint (1), heading + subtitle (2), column header (1), border
+  // top/bottom (2), the pinned "All projects" row (1), the "…more" indicator
+  // (1), and 1 row of safety headroom. Even a one-row overflow corrupts Ink's
+  // alt-screen redraw.
+  const CHROME_ROWS = 11;
   const visibleRows = Math.max(3, rows - CHROME_ROWS);
 
   const clip = (s: string) => (s.length > nameW ? s.slice(0, nameW - 1) + "…" : s);
