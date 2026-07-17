@@ -9,7 +9,7 @@ export interface ModelPrice {
   cacheWriteMult?: number;
 }
 
-// USD per million tokens. Anthropic cached 2026-06-24; OpenAI/Google cached 2026-07-16.
+// USD per million tokens. Anthropic cached 2026-06-24; OpenAI/Google cached 2026-07-17.
 // Longest matching prefix wins, so "gpt-5-mini" beats "gpt-5".
 export const PRICES: Record<string, ModelPrice> = {
   // Anthropic (cache write 1.25x input, cache read 0.1x)
@@ -22,6 +22,11 @@ export const PRICES: Record<string, ModelPrice> = {
   "claude-sonnet-4-6": { inputPerMTok: 3, outputPerMTok: 15 },
   "claude-haiku-4-5": { inputPerMTok: 1, outputPerMTok: 5 },
   // OpenAI (no cache-write charge; cached input 0.1x)
+  "gpt-5.6-sol": { inputPerMTok: 5, outputPerMTok: 30, cacheWriteMult: 0 },
+  "gpt-5.6-terra": { inputPerMTok: 2.5, outputPerMTok: 15, cacheWriteMult: 0 },
+  "gpt-5.6-luna": { inputPerMTok: 1, outputPerMTok: 6, cacheWriteMult: 0 },
+  "gpt-5.5-pro": { inputPerMTok: 30, outputPerMTok: 180, cacheWriteMult: 0, cacheReadMult: 1 },
+  "gpt-5.5": { inputPerMTok: 5, outputPerMTok: 30, cacheWriteMult: 0 },
   "gpt-5-codex": { inputPerMTok: 1.25, outputPerMTok: 10, cacheWriteMult: 0 },
   "gpt-5-mini": { inputPerMTok: 0.25, outputPerMTok: 2, cacheWriteMult: 0 },
   "gpt-5-nano": { inputPerMTok: 0.05, outputPerMTok: 0.4, cacheWriteMult: 0 },
