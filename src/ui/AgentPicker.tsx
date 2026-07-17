@@ -37,7 +37,7 @@ export function AgentPicker({
     .map(({ i }) => i);
   const [cursor, setCursor] = useState(0);
   const clamped = Math.min(cursor, Math.max(0, selectable.length - 1));
-  const { rows } = useTerminalSize();
+  const { cols, rows } = useTerminalSize();
 
   useInput((_input, key) => {
     if (key.upArrow) setCursor(() => Math.max(0, clamped - 1));
@@ -48,9 +48,14 @@ export function AgentPicker({
   const nameW = Math.max(...agents.map((a) => a.adapter.name.length)) + 2;
 
   // Window over the full displayed list, keeping the selected (selectable) row
-  // visible. Chrome: banner (~5), title (1), border (2), margin (1), indicator (1).
-  const CHROME_ROWS = 11;
-  const visibleRows = Math.max(3, rows - CHROME_ROWS);
+  // visible without overflowing the fixed-height screen (which would clip the
+  // banner/top row). Budget must match the Banner's own tiny/full height rule.
+  const tinyBanner = cols < 40 || rows < 18;
+  const bannerRows = tinyBanner ? 3 : 7; // art/wordmark + subtitle + marginBottom
+  // Fullscreen padding (2) + banner + "Pick an agent" (1) + marginTop (1) +
+  // border top/bottom (2) + the more/less indicator (1).
+  const chromeRows = 2 + bannerRows + 1 + 1 + 2 + 1;
+  const visibleRows = Math.max(3, rows - chromeRows);
   const selectedDisplayIdx = selectable[clamped] ?? 0;
   const offset = windowOffset(selectedDisplayIdx, agents.length, visibleRows);
   const visible = agents.slice(offset, offset + visibleRows);
