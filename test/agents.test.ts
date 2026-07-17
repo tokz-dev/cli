@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ADAPTERS } from "../src/agents/index.js";
 import { parseCodexRollout, loadCodexProjects, codexAdapter } from "../src/agents/codex.js";
 import { loadOpencodeProjects, opencodeAdapter } from "../src/agents/opencode.js";
 
@@ -115,5 +116,19 @@ describe("loadOpencodeProjects", () => {
     const home = mkdtempSync(join(tmpdir(), "tokz-oc-none-"));
     expect(await opencodeAdapter.detect(home)).toBe(false);
     expect(await loadOpencodeProjects(home)).toEqual([]);
+  });
+});
+
+describe("detect-only adapters", () => {
+  it("detects Antigravity by its conversations dir and explains why it's unsupported", async () => {
+    const antigravity = ADAPTERS.find((a) => a.id === "antigravity")!;
+    expect(antigravity.supported).toBe(false);
+    expect(antigravity.unsupportedReason).toContain("no token usage");
+
+    const home = mkdtempSync(join(tmpdir(), "tokz-ag-"));
+    expect(await antigravity.detect(home)).toBe(false);
+    mkdirSync(join(home, ".gemini", "antigravity", "conversations"), { recursive: true });
+    expect(await antigravity.detect(home)).toBe(true);
+    expect(await antigravity.loadProjects(home)).toEqual([]);
   });
 });

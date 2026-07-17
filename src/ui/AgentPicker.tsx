@@ -11,7 +11,11 @@ function status(a: AgentData): { text: string; color?: string; dim?: boolean } {
     const sessions = a.projects.reduce((s, p) => s + p.report.sessionCount, 0);
     return { text: `${a.projects.length} projects · ${sessions} sessions · ${usd(cost)}` };
   }
-  if (a.detected && !a.adapter.supported) return { text: "detected · parsing not supported yet", color: theme.warn };
+  if (a.detected && !a.adapter.supported)
+    return {
+      text: `detected · ${a.adapter.unsupportedReason ?? "parsing not supported yet"}`,
+      color: theme.warn,
+    };
   if (a.detected) return { text: "detected · no usage data", dim: true };
   return { text: "not detected", dim: true };
 }

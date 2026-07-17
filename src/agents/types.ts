@@ -10,6 +10,8 @@ export interface AgentAdapter {
   loadProjects(home?: string, onProgress?: (p: LoadProgress) => void): Promise<ProjectAudit[]>;
   /** false for agents we can detect but whose session format we can't parse yet */
   supported: boolean;
+  /** shown in the picker for detected-but-unsupported agents (why there's no data) */
+  unsupportedReason?: string;
 }
 
 export interface AgentData {

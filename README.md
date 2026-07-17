@@ -5,8 +5,9 @@ Audit where your coding agents' context windows — and API dollars — actually
 Supports multiple agentic coders: **Claude Code** (`~/.claude/projects`),
 **OpenAI Codex CLI** (`~/.codex/sessions` rollout files, cumulative
 token-count deltas), and **OpenCode** (`~/.local/share/opencode/storage`).
-Gemini CLI and Cursor CLI are detected and listed; their session formats
-aren't parsed yet. The TUI opens with an agent picker — choose which agent's
+Antigravity and Cursor CLI are detected and listed with the reason they
+can't be parsed (Antigravity stores no token usage on disk — its sessions
+are binary protobuf; Cursor uses SQLite). The TUI opens with an agent picker — choose which agent's
 analytics to explore; everything downstream (projects, dashboards,
 timeframes) is scoped to it.
 
