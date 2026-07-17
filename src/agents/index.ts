@@ -8,6 +8,7 @@ import { codebuffAdapter } from "./codebuff.js";
 import { codexAdapter } from "./codex.js";
 import { droidAdapter } from "./droid.js";
 import { geminiAdapter } from "./gemini.js";
+import { kiloAdapter } from "./kilo.js";
 import { kimiAdapter } from "./kimi.js";
 import { openclawAdapter } from "./openclaw.js";
 import { opencodeAdapter } from "./opencode.js";
@@ -59,14 +60,14 @@ export const ADAPTERS: AgentAdapter[] = [
   codebuffAdapter,
   openclawAdapter,
   kimiAdapter,
+  kiloAdapter,
   piAdapter,
   antigravityAdapter,
-  // Detected but not parsed yet: these keep usage in SQLite (goose/hermes/kilo/
-  // cursor) or formats we haven't wired (Copilot's OpenTelemetry spans, Amp's
-  // usage ledger). detectOnly surfaces them with the reason instead of hiding.
-  detectOnly("goose", "Goose", "usage lives in a SQLite DB (sessions.db) — no offline SQLite reader yet", [".local", "share", "goose", "sessions", "sessions.db"], ["Library", "Application Support", "goose", "sessions", "sessions.db"]),
-  detectOnly("hermes", "Hermes", "usage lives in a SQLite DB (state.db) — no offline SQLite reader yet", [".hermes", "state.db"]),
-  detectOnly("kilo", "Kilo", "usage lives in a SQLite DB (kilo.db) — no offline SQLite reader yet", [".local", "share", "kilo", "kilo.db"]),
+  // Detected but not parsed yet: Goose/Hermes keep usage in SQLite tables we
+  // haven't mapped (the reader exists in sqlite.ts — just needs their schema),
+  // Copilot uses OpenTelemetry spans, Amp a usage ledger, Cursor SQLite.
+  detectOnly("goose", "Goose", "SQLite schema (sessions.db) not mapped yet", [".local", "share", "goose", "sessions", "sessions.db"], ["Library", "Application Support", "goose", "sessions", "sessions.db"]),
+  detectOnly("hermes", "Hermes", "SQLite schema (state.db) not mapped yet", [".hermes", "state.db"]),
   detectOnly("copilot", "GitHub Copilot CLI", "usage is OpenTelemetry spans — parsing not wired yet", [".copilot", "otel"]),
   detectOnly("amp", "Amp", "usage-ledger thread format — parsing not wired yet", [".local", "share", "amp"]),
   detectOnly("cursor", "Cursor CLI", "sessions live in SQLite; parsing not supported yet", [".cursor", "chats"]),
