@@ -1,6 +1,6 @@
 {
   "name": "@tokz/cli",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Audit where your coding agent's context window and API dollars go.",
   "type": "module",
   "license": "MIT",
