@@ -31,9 +31,14 @@ function detectOnly(
   };
 }
 
-// Antigravity stores no token counts on disk, so its adapter reports
-// size-derived estimates (flagged as such in the UI). Cursor CLI stays
-// detect-only: sessions live in SQLite we don't parse yet.
+// The registry of every agent tokz knows about. To ADD an agent: write an
+// AgentAdapter (see codex.ts for a full parser — parse each session into a
+// SessionStats, then `groupSessionsByCwd(id, sessions)`) and list it here. If
+// its local data has no usable token counts, use detectOnly() so it still
+// shows up with a reason, like Cursor below.
+//
+// Antigravity is `supported` but flagged `estimated`: it has no token counts on
+// disk, so its adapter derives them from conversation size (see antigravity.ts).
 export const ADAPTERS: AgentAdapter[] = [
   claudeAdapter,
   codexAdapter,

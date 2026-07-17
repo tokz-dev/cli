@@ -50,6 +50,34 @@ export function baseName(p: string): string {
   return parts.at(-1) ?? p;
 }
 
+const UNKNOWN_PROJECT = "(unknown project)";
+
+/**
+ * Turn a flat list of parsed sessions into per-project audits, grouped by the
+ * working directory each session recorded. Shared by every non-Claude adapter
+ * (Codex, OpenCode, Antigravity) — they differ only in how they parse a session
+ * and the `agentId` prefix used to keep project ids unique across agents.
+ */
+export function groupSessionsByCwd(agentId: string, sessions: SessionStats[]): ProjectAudit[] {
+  const byCwd = new Map<string, SessionStats[]>();
+  for (const s of sessions) {
+    if (Object.keys(s.usageByModel).length === 0) continue;
+    const key = s.cwd ?? UNKNOWN_PROJECT;
+    (byCwd.get(key) ?? byCwd.set(key, []).get(key)!).push(s);
+  }
+  return [...byCwd]
+    .map(([cwd, group]) => ({
+      id: `${agentId}:${cwd}`,
+      name: cwd,
+      label: cwd === UNKNOWN_PROJECT ? cwd : baseName(cwd),
+      realPath: cwd === UNKNOWN_PROJECT ? undefined : cwd,
+      report: buildReport(group, []),
+      sessions: group,
+      serverList: [],
+    }))
+    .sort((a, b) => b.report.totalCostUsd - a.report.totalCostUsd);
+}
+
 const DAY_MS = 86_400_000;
 
 // Merge every project's report into one aggregate report (for the "all projects" view).

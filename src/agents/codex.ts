@@ -5,9 +5,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { glob } from "tinyglobby";
 import { z } from "zod";
-import { buildReport } from "../attribute.js";
 import { costUsd, emptyUsage } from "../pricing.js";
-import { baseName, type LoadProgress, type ProjectAudit } from "../projects.js";
+import { groupSessionsByCwd, type LoadProgress, type ProjectAudit } from "../projects.js";
 import type { SessionStats, UsageTotals } from "../types.js";
 import type { AgentAdapter } from "./types.js";
 
@@ -151,34 +150,15 @@ export async function loadCodexProjects(
   }).catch(() => []);
   if (files.length === 0) return [];
 
-  const byCwd = new Map<string, SessionStats[]>();
+  const sessions: SessionStats[] = [];
   let parsed = 0;
   for (const f of files) {
     onProgress?.({ parsed, total: files.length, currentProject: "Codex sessions" });
-    const s = await parseCodexRollout(f);
+    sessions.push(await parseCodexRollout(f));
     parsed += 1;
     onProgress?.({ parsed, total: files.length, currentProject: "Codex sessions" });
-    if (Object.keys(s.usageByModel).length === 0) continue;
-    const key = s.cwd ?? "(unknown project)";
-    const list = byCwd.get(key) ?? [];
-    list.push(s);
-    byCwd.set(key, list);
   }
-
-  const out: ProjectAudit[] = [];
-  for (const [cwd, sessions] of byCwd) {
-    out.push({
-      id: `codex:${cwd}`,
-      name: cwd,
-      label: cwd === "(unknown project)" ? cwd : baseName(cwd),
-      realPath: cwd,
-      report: buildReport(sessions, []),
-      sessions,
-      serverList: [],
-    });
-  }
-  out.sort((a, b) => b.report.totalCostUsd - a.report.totalCostUsd);
-  return out;
+  return groupSessionsByCwd("codex", sessions);
 }
 
 export const codexAdapter: AgentAdapter = {

@@ -3,9 +3,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { glob } from "tinyglobby";
 import { z } from "zod";
-import { buildReport } from "../attribute.js";
 import { emptyUsage } from "../pricing.js";
-import { baseName, type LoadProgress, type ProjectAudit } from "../projects.js";
+import { groupSessionsByCwd, type LoadProgress, type ProjectAudit } from "../projects.js";
 import type { SessionStats } from "../types.js";
 import type { AgentAdapter } from "./types.js";
 
@@ -120,29 +119,7 @@ export async function loadOpencodeProjects(
     }
   }
 
-  const byDir = new Map<string, SessionStats[]>();
-  for (const s of bySession.values()) {
-    if (Object.keys(s.usageByModel).length === 0) continue;
-    const key = s.cwd ?? "(unknown project)";
-    const list = byDir.get(key) ?? [];
-    list.push(s);
-    byDir.set(key, list);
-  }
-
-  const out: ProjectAudit[] = [];
-  for (const [dir, sessions] of byDir) {
-    out.push({
-      id: `opencode:${dir}`,
-      name: dir,
-      label: dir === "(unknown project)" ? dir : baseName(dir),
-      realPath: dir,
-      report: buildReport(sessions, []),
-      sessions,
-      serverList: [],
-    });
-  }
-  out.sort((a, b) => b.report.totalCostUsd - a.report.totalCostUsd);
-  return out;
+  return groupSessionsByCwd("opencode", [...bySession.values()]);
 }
 
 export const opencodeAdapter: AgentAdapter = {

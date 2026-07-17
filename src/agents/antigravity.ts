@@ -1,9 +1,8 @@
 import { access, readFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { buildReport } from "../attribute.js";
 import { emptyUsage } from "../pricing.js";
-import { baseName, type LoadProgress, type ProjectAudit } from "../projects.js";
+import { groupSessionsByCwd, type LoadProgress, type ProjectAudit } from "../projects.js";
 import type { SessionStats } from "../types.js";
 import type { AgentAdapter } from "./types.js";
 
@@ -184,28 +183,7 @@ export async function loadAntigravityProjects(
     sessions.push(stats);
   }
 
-  const byDir = new Map<string, SessionStats[]>();
-  for (const s of sessions) {
-    const key = s.cwd ?? "(unknown project)";
-    const list = byDir.get(key) ?? [];
-    list.push(s);
-    byDir.set(key, list);
-  }
-
-  const out: ProjectAudit[] = [];
-  for (const [dir, list] of byDir) {
-    out.push({
-      id: `antigravity:${dir}`,
-      name: dir,
-      label: dir === "(unknown project)" ? dir : baseName(dir),
-      realPath: dir,
-      report: buildReport(list, []),
-      sessions: list,
-      serverList: [],
-    });
-  }
-  out.sort((a, b) => b.report.totalCostUsd - a.report.totalCostUsd);
-  return out;
+  return groupSessionsByCwd("antigravity", sessions);
 }
 
 export const antigravityAdapter: AgentAdapter = {
