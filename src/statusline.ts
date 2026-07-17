@@ -11,22 +11,45 @@ import { costUsd } from "./pricing.js";
 import { parseTranscript, type CountedUsage } from "./transcript.js";
 
 /**
- * `tokz statusline` — one compact line for Claude Code's statusLine hook.
- * Claude Code pipes session JSON on stdin; we add today's total, the active
- * 5-hour block, burn rate, and context usage from the local transcripts.
- * Must stay fast: only transcripts touched in the last ~6h are parsed, and
- * pricing comes from the disk cache (never a network fetch).
+ * `tokz statusline` — one compact line for Claude Code's statusLine hook,
+ * matching ccusage's format:
+ *
+ *   🤖 Fable 5 (high) | 💰 $0.23 session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
+ *
+ * Claude Code pipes session JSON on stdin. Session cost, context tokens, and
+ * the context-window size come straight from that payload when present (newer
+ * Claude Code sends `cost`, `context_window`, and `effort`); today's total and
+ * the active 5-hour block come from the local transcripts. Must stay fast:
+ * only transcripts touched in the last ~6h are parsed, and pricing comes from
+ * the disk cache (never a network fetch).
  */
 
 interface StatuslineInput {
   session_id?: string;
   transcript_path?: string;
   model?: { id?: string; display_name?: string };
+  effort?: { level?: string };
   cost?: { total_cost_usd?: number };
+  context_window?: {
+    total_input_tokens?: number;
+    total_output_tokens?: number;
+    context_window_size?: number;
+  };
+  exceeds_200k_tokens?: boolean;
+}
+
+/** How the session cost is sourced, mirroring ccusage's --cost-source. */
+export type CostSource = "auto" | "cc" | "ccusage" | "both";
+
+export interface StatuslineOptions {
+  costSource?: CostSource;
 }
 
 const CONTEXT_WINDOW = 200_000;
 const LOOKBACK_MS = 6 * 60 * 60 * 1000;
+// Burn-rate color thresholds in tokens/minute (ccusage parity).
+const BURN_MODERATE = 2000;
+const BURN_HIGH = 5000;
 
 /** Context tokens of the newest assistant message (input + cache = what's loaded). */
 async function lastContextTokens(transcriptPath: string): Promise<number | undefined> {
@@ -56,7 +79,9 @@ export async function statusline(
   input: StatuslineInput,
   now: number = Date.now(),
   home?: string,
+  opts: StatuslineOptions = {},
 ): Promise<string> {
+  const costSource = opts.costSource ?? "auto";
   const files = await findTranscripts(undefined, home);
   const recent: string[] = [];
   await Promise.all(
@@ -77,38 +102,79 @@ export async function statusline(
 
   const today = dayKey(now);
   let todayCost = 0;
-  let sessionCost: number | undefined = input.cost?.total_cost_usd;
+  // ccusage token-based cost for this session (from its transcript).
+  let ccusageSessionCost: number | undefined;
   for (const s of sessions) {
     for (const [model, u] of Object.entries(s.dailyUsage[today] ?? {})) todayCost += costUsd(u, model).total;
-    if (sessionCost === undefined && input.transcript_path && s.file === input.transcript_path) {
-      sessionCost = Object.entries(s.usageByModel).reduce((sum, [m, u]) => sum + costUsd(u, m).total, 0);
+    if (input.transcript_path && s.file === input.transcript_path) {
+      ccusageSessionCost = Object.entries(s.usageByModel).reduce((sum, [m, u]) => sum + costUsd(u, m).total, 0);
     }
   }
+  const ccCost = input.cost?.total_cost_usd; // Claude Code's own figure
 
   const blocks = buildBlocks(events, { now });
   const active = blocks.find((b) => b.active);
   const rate = active ? burnRate(active, now) : undefined;
 
-  const model = input.model?.display_name ?? shortModel(input.model?.id ?? "?");
-  const parts = [`🤖 ${model}`];
+  const modelName = input.model?.display_name ?? shortModel(input.model?.id ?? "?");
+  const effort = input.effort?.level;
+  const parts = [`🤖 ${modelName}${effort ? ` (${effort})` : ""}`];
 
-  const costs = [
-    sessionCost !== undefined ? `${usd(sessionCost)} session` : undefined,
-    `${usd(todayCost)} today`,
-    active ? `${usd(active.costUsd)} block (${fmtMs(active.end - now)} left)` : undefined,
-  ].filter(Boolean);
-  parts.push(`💰 ${costs.join(" / ")}`);
+  parts.push(`💰 ${moneySegment(costSource, ccCost, ccusageSessionCost, todayCost, active, now)}`);
 
-  if (rate) parts.push(`🔥 ${usd(rate.costPerHour)}/hr`);
+  if (rate) {
+    const tpm = rate.tokensPerMinute;
+    const label = `🔥 ${usd(rate.costPerHour)}/hr`;
+    parts.push(tpm > BURN_HIGH ? pc.red(label) : tpm > BURN_MODERATE ? pc.yellow(label) : pc.green(label));
+  }
 
-  const ctx = input.transcript_path ? await lastContextTokens(input.transcript_path) : undefined;
+  const ctx = await contextTokens(input);
   if (ctx !== undefined) {
-    const p = Math.round((ctx / CONTEXT_WINDOW) * 100);
+    const window = input.context_window?.context_window_size ?? CONTEXT_WINDOW;
+    const p = Math.round((ctx / window) * 100);
     const colored = p >= 80 ? pc.red(`${p}%`) : p >= 50 ? pc.yellow(`${p}%`) : pc.green(`${p}%`);
     parts.push(`🧠 ${compact(ctx)} (${colored})`);
   }
 
   return parts.join(pc.dim(" | "));
+}
+
+/** Build the `$x session / $y today / $z block (…)` segment per cost-source mode. */
+function moneySegment(
+  source: CostSource,
+  ccCost: number | undefined,
+  ccusageCost: number | undefined,
+  todayCost: number,
+  active: { costUsd: number; end: number } | undefined,
+  now: number,
+): string {
+  let session: string;
+  if (source === "both") {
+    session = `(${usd(ccCost ?? 0)} cc / ${usd(ccusageCost ?? 0)} ccusage) session`;
+  } else {
+    const pick =
+      source === "cc"
+        ? ccCost
+        : source === "ccusage"
+          ? ccusageCost
+          : (ccCost ?? ccusageCost); // auto: prefer Claude Code's figure
+    session = `${usd(pick ?? 0)} session`;
+  }
+  const block = active
+    ? `${usd(active.costUsd)} block (${fmtMs(active.end - now)} left)`
+    : "No active block";
+  return `${session} / ${usd(todayCost)} today / ${block}`;
+}
+
+/**
+ * Context tokens currently loaded. Prefer Claude Code's stdin figure
+ * (`context_window.total_input_tokens`, the accurate count it reports); else
+ * scan the transcript tail for the newest assistant message's input+cache.
+ */
+async function contextTokens(input: StatuslineInput): Promise<number | undefined> {
+  const cw = input.context_window;
+  if (cw && typeof cw.total_input_tokens === "number") return cw.total_input_tokens;
+  return input.transcript_path ? lastContextTokens(input.transcript_path) : undefined;
 }
 
 function msSinceMidnight(now: number): number {

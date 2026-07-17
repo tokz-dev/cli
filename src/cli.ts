@@ -119,7 +119,8 @@ program
   .command("statusline")
   .description("compact usage line for Claude Code's statusLine hook (reads hook JSON on stdin)")
   .argument("[action]", '"enable" writes the hook into ~/.claude/settings.json, "disable" removes it')
-  .action(async (action: string | undefined) => {
+  .option("--cost-source <mode>", "session cost source: auto | cc | ccusage | both", "auto")
+  .action(async (action: string | undefined, opts: { costSource?: string }) => {
     const globals = applyGlobals();
     const sl = await import("./statusline.js");
     if (action === "enable" || action === "disable") {
@@ -144,7 +145,11 @@ program
     } catch {
       // no/invalid stdin: still render what we can
     }
-    console.log(await sl.statusline(input as Record<string, never>));
+    const valid = ["auto", "cc", "ccusage", "both"] as const;
+    const costSource = valid.includes((opts.costSource ?? "auto") as (typeof valid)[number])
+      ? ((opts.costSource ?? "auto") as (typeof valid)[number])
+      : "auto";
+    console.log(await sl.statusline(input as Record<string, never>, Date.now(), undefined, { costSource }));
   });
 
 program.action(async () => {
