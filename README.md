@@ -6,16 +6,16 @@ Supports the same agent coverage as ccusage. Fully parsed: **Claude Code**
 (`~/.claude/projects`), **OpenAI Codex CLI** (`~/.codex/sessions`),
 **OpenCode**, **Gemini CLI** (`~/.gemini/tmp`), **Qwen Code** (`~/.qwen`),
 **Droid / Factory** (`~/.factory/sessions`), **Codebuff** (`~/.config/manicode*`),
-**OpenClaw**, **Kimi CLI**, **pi-agent**, and **Kilo** (`~/.local/share/kilo/kilo.db`,
-read with a small built-in pure-JS SQLite reader — no native dependency).
-**Antigravity CLI**
+**OpenClaw**, **Kimi CLI**, **pi-agent**, and the SQLite-backed **Kilo**,
+**Goose**, and **Hermes** (read with a small built-in pure-JS SQLite reader —
+no native dependency). **Antigravity CLI**
 (`~/.gemini/antigravity-cli`) is supported but *estimated* — it stores no
 token counts on disk, so per-model turn counts come from the conversation
 databases and tokens are derived from content size (~4 chars/token); the UI
-labels it "estimated". Agents whose SQLite schema isn't mapped yet (**Goose**,
-**Hermes**, **Cursor**) or that use formats not wired yet (**GitHub Copilot
-CLI**'s OpenTelemetry spans, **Amp**'s usage ledger) are detected and listed
-with the reason they aren't parsed. The TUI opens with an agent picker — choose which agent's
+labels it "estimated". A few are detected but not parsed, each listed with the
+reason: **GitHub Copilot CLI** (OpenTelemetry spans) and **Amp** (usage ledger)
+aren't wired yet, and **Cursor** keeps no token counts on disk — its usage is
+server-side. The TUI opens with an agent picker — choose which agent's
 analytics to explore; everything downstream (projects, dashboards,
 timeframes) is scoped to it.
 

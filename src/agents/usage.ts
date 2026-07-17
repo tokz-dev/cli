@@ -94,6 +94,25 @@ export function str(obj: unknown, key: string): string | undefined {
 }
 
 /**
+ * Coerce a stored timestamp to an ISO string. Accepts an ISO/date string, or a
+ * numeric epoch in seconds or milliseconds (values below ~year 2001 in ms are
+ * treated as seconds). Returns undefined when it can't be read.
+ */
+export function toIso(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const t = Date.parse(value);
+    return Number.isFinite(t) ? new Date(t).toISOString() : undefined;
+  }
+  if (typeof value === "number" || typeof value === "bigint") {
+    let ms = Number(value);
+    if (!Number.isFinite(ms) || ms <= 0) return undefined;
+    if (ms < 1e12) ms *= 1000; // seconds -> milliseconds
+    return new Date(ms).toISOString();
+  }
+  return undefined;
+}
+
+/**
  * First nested object (depth-first, self included) that owns at least one of
  * `keys`. Used by adapters whose usage object sits at an uncertain nesting
  * depth, so we locate it by its field names rather than a fixed path.

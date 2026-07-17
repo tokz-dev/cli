@@ -8,6 +8,8 @@ import { codebuffAdapter } from "./codebuff.js";
 import { codexAdapter } from "./codex.js";
 import { droidAdapter } from "./droid.js";
 import { geminiAdapter } from "./gemini.js";
+import { gooseAdapter } from "./goose.js";
+import { hermesAdapter } from "./hermes.js";
 import { kiloAdapter } from "./kilo.js";
 import { kimiAdapter } from "./kimi.js";
 import { openclawAdapter } from "./openclaw.js";
@@ -61,16 +63,16 @@ export const ADAPTERS: AgentAdapter[] = [
   openclawAdapter,
   kimiAdapter,
   kiloAdapter,
+  gooseAdapter,
+  hermesAdapter,
   piAdapter,
   antigravityAdapter,
-  // Detected but not parsed yet: Goose/Hermes keep usage in SQLite tables we
-  // haven't mapped (the reader exists in sqlite.ts — just needs their schema),
-  // Copilot uses OpenTelemetry spans, Amp a usage ledger, Cursor SQLite.
-  detectOnly("goose", "Goose", "SQLite schema (sessions.db) not mapped yet", [".local", "share", "goose", "sessions", "sessions.db"], ["Library", "Application Support", "goose", "sessions", "sessions.db"]),
-  detectOnly("hermes", "Hermes", "SQLite schema (state.db) not mapped yet", [".hermes", "state.db"]),
+  // Detected but not parsed: Copilot uses OpenTelemetry spans, Amp a usage
+  // ledger (formats not wired yet). Cursor keeps no token counts in its local
+  // SQLite — usage is server-side — so there is nothing to parse offline.
   detectOnly("copilot", "GitHub Copilot CLI", "usage is OpenTelemetry spans — parsing not wired yet", [".copilot", "otel"]),
   detectOnly("amp", "Amp", "usage-ledger thread format — parsing not wired yet", [".local", "share", "amp"]),
-  detectOnly("cursor", "Cursor CLI", "sessions live in SQLite; parsing not supported yet", [".cursor", "chats"]),
+  detectOnly("cursor", "Cursor", "no token counts stored locally — usage is server-side", [".cursor"]),
 ];
 
 export async function loadAllAgents(

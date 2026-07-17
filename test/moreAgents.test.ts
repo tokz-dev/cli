@@ -152,9 +152,10 @@ describe("registry", () => {
     for (const id of ["claude", "codex", "opencode", "gemini", "qwen", "droid", "codebuff", "openclaw", "kimi", "pi", "goose", "hermes", "kilo", "copilot", "amp"]) {
       expect(ids).toContain(id);
     }
-    // SQLite/OTel/ledger agents are surfaced as detect-only with a reason
-    const goose = ADAPTERS.find((a) => a.id === "goose")!;
-    expect(goose.supported).toBe(false);
-    expect(goose.unsupportedReason).toContain("SQLite");
+    // Copilot (OTel) and Amp (ledger) stay detect-only; Cursor keeps no local
+    // token counts, so it's surfaced with that reason rather than parsed.
+    const cursor = ADAPTERS.find((a) => a.id === "cursor")!;
+    expect(cursor.supported).toBe(false);
+    expect(cursor.unsupportedReason).toContain("server-side");
   });
 });
