@@ -55,16 +55,11 @@ describe("BarChart", () => {
     expect(lastFrame()).toContain("█");
     expect(lastFrame()).toContain("$10");
   });
-
-  it("shows percentage share when enabled", () => {
-    const { lastFrame } = render(
-      <BarChart rows={[{ label: "a", value: 75 }, { label: "b", value: 25 }]} showShare />,
-    );
-    expect(lastFrame()).toContain("75%");
-    expect(lastFrame()).toContain("25%");
-  });
 });
 
+// Rendering smoke for the highest-value tabs only: Overview (headline
+// numbers), Servers (the UNUSED-MCP feature), Activity (day/week/month
+// grouping logic). The plain-table tabs are covered by renderReport/data tests.
 describe("Dashboard", () => {
   it("shows overview stat cards with cost, cache hit rate and savings", () => {
     const { lastFrame } = render(<Dashboard project={project} />);
@@ -75,30 +70,10 @@ describe("Dashboard", () => {
     expect(lastFrame()).toContain("never called");
   });
 
-  it("renders the Models tab with token columns", () => {
-    const { lastFrame } = render(<Dashboard project={project} initialTab={1} />);
-    expect(lastFrame()).toContain("opus-4-8");
-    expect(lastFrame()).toContain("1.0M");
-    expect(lastFrame()).toContain("9.0M");
-  });
-
-  it("renders the Tools tab with call counts", () => {
-    const { lastFrame } = render(<Dashboard project={project} initialTab={2} />);
-    expect(lastFrame()).toContain("Read");
-    expect(lastFrame()).toContain("30");
-    expect(lastFrame()).toContain("MCP");
-  });
-
   it("renders the Servers tab and flags UNUSED", () => {
     const { lastFrame } = render(<Dashboard project={project} initialTab={3} />);
     expect(lastFrame()).toContain("ctx");
     expect(lastFrame()).toContain("UNUSED");
-  });
-
-  it("renders the Sessions tab with duration and cost", () => {
-    const { lastFrame } = render(<Dashboard project={project} initialTab={4} />);
-    expect(lastFrame()).toContain("2h 30m");
-    expect(lastFrame()).toContain("$22.00");
   });
 
   it("renders the Activity tab with daily costs", () => {

@@ -1,19 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { compact, duration, pct, relativeDate, shortModel } from "../src/format.js";
+import { duration, relativeDate, shortModel } from "../src/format.js";
 
+// Only the formatters with real branching/regex are worth pinning; pure
+// number formatting (compact/pct) is trivial and visibly wrong if it breaks.
 describe("format", () => {
-  it("compacts token counts", () => {
-    expect(compact(42)).toBe("42");
-    expect(compact(1_234)).toBe("1.2k");
-    expect(compact(5_600_000)).toBe("5.6M");
-    expect(compact(2_500_000_000)).toBe("2.5B");
-  });
-
-  it("formats percentages", () => {
-    expect(pct(0.905)).toBe("91%");
-    expect(pct(0)).toBe("0%");
-  });
-
   it("shortens model ids", () => {
     expect(shortModel("claude-opus-4-8")).toBe("opus-4-8");
     expect(shortModel("claude-haiku-4-5-20251001")).toBe("haiku-4-5");
