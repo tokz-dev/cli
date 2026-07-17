@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import type { AgentData } from "../agents/types.js";
 import { usd } from "../format.js";
-import { Banner } from "./Banner.js";
+import { Banner, bannerHeight, type BannerMode } from "./Banner.js";
 import { theme } from "./theme.js";
 import { useTerminalSize } from "./useTerminalSize.js";
 import { windowOffset } from "./viewport.js";
@@ -47,15 +47,19 @@ export function AgentPicker({
 
   const nameW = Math.max(...agents.map((a) => a.adapter.name.length)) + 2;
 
-  // Window over the full displayed list, keeping the selected (selectable) row
-  // visible without overflowing the fixed-height screen (which would clip the
-  // banner/top row). Budget must match the Banner's own tiny/full height rule.
-  const tinyBanner = cols < 40 || rows < 18;
-  const bannerRows = tinyBanner ? 3 : 7; // art/wordmark + subtitle + marginBottom
-  // Fullscreen padding (2) + banner + "Pick an agent" (1) + marginTop (1) +
-  // border top/bottom (2) + the more/less indicator (1).
-  const chromeRows = 2 + bannerRows + 1 + 1 + 2 + 1;
-  const visibleRows = Math.max(3, rows - chromeRows);
+  // Fit the whole picker inside the fixed-height screen: reserve the fixed
+  // chrome, give the banner what's left, and shrink it (full -> tiny -> none)
+  // before ever clipping the title or the agent list. Overflow would scroll
+  // the top (title + first rows) off the alt-screen.
+  // Fixed chrome: Fullscreen padding (2) + "Pick an agent" (1) + list marginTop
+  // (1) + border top/bottom (2) + more/less indicator (1).
+  const FIXED_CHROME = 7;
+  const LIST_MIN = 3;
+  const forcedTiny = cols < 40;
+  const bannerBudget = rows - FIXED_CHROME - LIST_MIN;
+  const bannerMode: BannerMode =
+    !forcedTiny && bannerBudget >= 7 ? "full" : bannerBudget >= 3 ? "tiny" : "none";
+  const visibleRows = Math.max(1, rows - FIXED_CHROME - bannerHeight(bannerMode));
   const selectedDisplayIdx = selectable[clamped] ?? 0;
   const offset = windowOffset(selectedDisplayIdx, agents.length, visibleRows);
   const visible = agents.slice(offset, offset + visibleRows);
@@ -63,7 +67,7 @@ export function AgentPicker({
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Banner subtitle="where your agents' tokens and dollars go · 100% offline" />
+      <Banner subtitle="where your agents' tokens and dollars go · 100% offline" mode={bannerMode} />
       <Text bold color={theme.accent}>
         Pick an agent
       </Text>
