@@ -68,7 +68,7 @@ export function AgentPicker({
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Banner subtitle="where your agents' tokens and dollars go" mode={bannerMode} />
+      <Banner subtitle="where your agents' tokens and dollars actually go" mode={bannerMode} />
       <Text bold color={theme.accent}>
         Pick an agent
       </Text>

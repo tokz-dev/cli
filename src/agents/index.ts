@@ -48,7 +48,7 @@ function detectOnly(
 // AgentAdapter (see codex.ts for a full parser — parse each session into a
 // SessionStats, then `groupSessionsByCwd(id, sessions)`) and list it here. If
 // its local data has no usable token counts, use detectOnly() so it still
-// shows up with a reason, like Cursor below.
+// shows up with a reason, like Copilot/Amp below.
 //
 // Antigravity is `supported` but flagged `estimated`: it has no token counts on
 // disk, so its adapter derives them from conversation size (see antigravity.ts).
@@ -68,11 +68,11 @@ export const ADAPTERS: AgentAdapter[] = [
   piAdapter,
   antigravityAdapter,
   // Detected but not parsed: Copilot uses OpenTelemetry spans, Amp a usage
-  // ledger (formats not wired yet). Cursor keeps no token counts in its local
-  // SQLite — usage is server-side — so there is nothing to parse offline.
+  // ledger (formats not wired yet). Cursor is intentionally absent — it stores
+  // no token counts on disk (usage is server-side, reachable only with auth),
+  // which is out of scope for an offline tool.
   detectOnly("copilot", "GitHub Copilot CLI", "usage is OpenTelemetry spans — parsing not wired yet", [".copilot", "otel"]),
   detectOnly("amp", "Amp", "usage-ledger thread format — parsing not wired yet", [".local", "share", "amp"]),
-  detectOnly("cursor", "Cursor", "no token counts stored locally — usage is server-side", [".cursor"]),
 ];
 
 export async function loadAllAgents(

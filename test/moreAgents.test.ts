@@ -152,10 +152,12 @@ describe("registry", () => {
     for (const id of ["claude", "codex", "opencode", "gemini", "qwen", "droid", "codebuff", "openclaw", "kimi", "pi", "goose", "hermes", "kilo", "copilot", "amp"]) {
       expect(ids).toContain(id);
     }
-    // Copilot (OTel) and Amp (ledger) stay detect-only; Cursor keeps no local
-    // token counts, so it's surfaced with that reason rather than parsed.
-    const cursor = ADAPTERS.find((a) => a.id === "cursor")!;
-    expect(cursor.supported).toBe(false);
-    expect(cursor.unsupportedReason).toContain("server-side");
+    // Copilot (OTel) and Amp (ledger) stay detect-only until their formats are
+    // wired; both carry a reason.
+    const copilot = ADAPTERS.find((a) => a.id === "copilot")!;
+    expect(copilot.supported).toBe(false);
+    expect(copilot.unsupportedReason).toBeTruthy();
+    // Cursor is intentionally not registered (server-side usage, needs auth).
+    expect(ADAPTERS.some((a) => a.id === "cursor")).toBe(false);
   });
 });
