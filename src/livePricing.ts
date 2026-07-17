@@ -3,12 +3,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { setLivePrices, type ModelPrice } from "./pricing.js";
 
-/**
- * Live pricing from LiteLLM's model catalog (the same source ccusage uses),
- * so new models are priced correctly without a tokz release. Fetched at CLI
- * startup with a short timeout, cached on disk for a day; offline or on any
- * failure we fall back to the cached copy, then to the static PRICES table.
- */
+// Live pricing from LiteLLM's catalog (same source as ccusage), so new models
+// price correctly without a tokz release. Fetched at startup, cached on disk
+// for a day; on offline/failure falls back to the cache, then static PRICES.
 
 const LITELLM_URL =
   "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";

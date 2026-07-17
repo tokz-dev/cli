@@ -2,12 +2,9 @@ import { costUsd, emptyUsage } from "./pricing.js";
 import { addUsage } from "./attribute.js";
 import type { UsageTotals } from "./types.js";
 
-/**
- * Claude's usage limits work in rolling 5-hour billing windows: the first
- * message opens a block (start floored to the hour), it lasts exactly 5 hours,
- * and the next activity after expiry opens a new one. Same model ccusage uses,
- * so numbers line up.
- */
+// Claude usage limits run in rolling 5h windows: first message opens a block
+// (start floored to the hour), it lasts 5h, next activity after expiry opens a
+// new one. Same model ccusage uses.
 
 export interface UsageEvent {
   ts: number; // ms epoch

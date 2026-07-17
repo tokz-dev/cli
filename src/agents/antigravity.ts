@@ -6,22 +6,10 @@ import { groupSessionsByCwd, type LoadProgress, type ProjectAudit } from "../pro
 import type { SessionStats } from "../types.js";
 import type { AgentAdapter } from "./types.js";
 
-/**
- * Antigravity CLI stores conversations as SQLite databases whose rows are
- * protobuf blobs — no token counts anywhere on disk (ccusage rejected it for
- * the same reason). What IS recoverable offline:
- *
- * - `history.jsonl`: every user prompt with timestamp, workspace path, and
- *   conversation id — exact project attribution and activity dates.
- * - `conversations/<id>.db`: per-turn generation metadata records (anchored by
- *   a `used_claude_conservative` field) that carry the model's display name,
- *   e.g. "Gemini 3.1 Pro (High)" — exact per-model turn counts.
- * - The database's printable text volume ≈ the conversation's total content,
- *   which we convert to tokens at ~4 chars/token.
- *
- * So turns and models are real; token counts and costs are ESTIMATES derived
- * from content size. The adapter is flagged `estimated` and the UI labels it.
- */
+// Antigravity stores no token counts on disk. Turns and models are real (from
+// the conversation DB's generation-metadata records + history.jsonl); token
+// counts are estimated from conversation text size, so the adapter is
+// `estimated`. See scanConversation for the byte-level details.
 
 const ESTIMATED_CHARS_PER_TOKEN = 4;
 // Agent context (system prompt, files, tool results) dwarfs generated text;

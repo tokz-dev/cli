@@ -1,10 +1,7 @@
 import type { DailyStat } from "./types.js";
 
-/**
- * Date grouping is UTC by default (matching transcript timestamps and all
- * historical tokz output); setTimezone("local") or an IANA zone re-buckets
- * days in that zone. Set once at CLI startup, before any parsing.
- */
+// Day grouping is UTC by default; setTimezone("local"|IANA) re-buckets. Call
+// once at CLI startup, before parsing.
 let zone: string | undefined;
 let formatter: Intl.DateTimeFormat | undefined;
 

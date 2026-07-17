@@ -10,19 +10,11 @@ import { compact, shortModel, usd } from "./format.js";
 import { costUsd } from "./pricing.js";
 import { parseTranscript, type CountedUsage } from "./transcript.js";
 
-/**
- * `tokz statusline` — one compact line for Claude Code's statusLine hook,
- * matching ccusage's format:
- *
- *   🤖 Fable 5 (high) | 💰 $0.23 session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
- *
- * Claude Code pipes session JSON on stdin. Session cost, context tokens, and
- * the context-window size come straight from that payload when present (newer
- * Claude Code sends `cost`, `context_window`, and `effort`); today's total and
- * the active 5-hour block come from the local transcripts. Must stay fast:
- * only transcripts touched in the last ~6h are parsed, and pricing comes from
- * the disk cache (never a network fetch).
- */
+// `tokz statusline` renders one line for Claude Code's statusLine hook, in
+// ccusage's format. Claude Code pipes session JSON on stdin; session cost,
+// context, and effort come from that payload, today's total and the active
+// block from local transcripts. Kept fast: only ~6h of transcripts parsed,
+// pricing from the disk cache (never a network fetch).
 
 interface StatuslineInput {
   session_id?: string;
