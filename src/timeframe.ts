@@ -1,3 +1,5 @@
+import { dayKey } from "./dates.js";
+
 export const TIMEFRAMES = [
   { id: "all", label: "All time" },
   { id: "today", label: "Today" },
@@ -9,12 +11,11 @@ export const TIMEFRAMES = [
 export type TimeframeId = (typeof TIMEFRAMES)[number]["id"];
 
 export interface DateRange {
-  from: string; // inclusive ISO date (YYYY-MM-DD, UTC — matches transcript timestamps)
-  to: string; // inclusive ISO date
+  from: string; // inclusive YYYY-MM-DD in the configured timezone (UTC by default)
+  to: string; // inclusive date
 }
 
-const isoDay = (offsetDays: number, now: number) =>
-  new Date(now - offsetDays * 86_400_000).toISOString().slice(0, 10);
+const isoDay = (offsetDays: number, now: number) => dayKey(now - offsetDays * 86_400_000);
 
 export function timeframeLabel(id: TimeframeId): string {
   return TIMEFRAMES.find((t) => t.id === id)?.label ?? id;

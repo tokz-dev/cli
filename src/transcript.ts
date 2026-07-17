@@ -1,6 +1,8 @@
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { z } from "zod";
+import type { UsageEvent } from "./blocks.js";
+import { dayKey } from "./dates.js";
 import { costUsd, emptyUsage } from "./pricing.js";
 import type { SessionStats, UsageTotals } from "./types.js";
 
@@ -52,6 +54,7 @@ export async function parseTranscript(
   file: string,
   seenMessages: Map<string, CountedUsage> = new Map(),
   seenToolIds: Set<string> = new Set(),
+  events?: UsageEvent[],
 ): Promise<SessionStats> {
   const stats: SessionStats = { file, usageByModel: {}, toolCalls: {}, toolCostUsd: {}, dailyUsage: {} };
   const rl = createInterface({ input: createReadStream(file, "utf8"), crlfDelay: Infinity });
@@ -110,8 +113,9 @@ export async function parseTranscript(
       if (hasDelta) {
         const accs = [(stats.usageByModel[model] ??= emptyUsage())];
         if (timestamp) {
-          const day = (stats.dailyUsage[timestamp.slice(0, 10)] ??= {});
+          const day = (stats.dailyUsage[dayKey(timestamp)] ??= {});
           accs.push((day[model] ??= emptyUsage()));
+          events?.push({ ts: Date.parse(timestamp), model, usage: delta });
         }
         for (const acc of accs) {
           acc.inputTokens += delta.inputTokens;

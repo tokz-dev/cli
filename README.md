@@ -19,10 +19,47 @@ timeframes) is scoped to it.
 npx @tokz/cli             # interactive TUI: browse projects, drill into charts
 npx @tokz/cli audit       # static report for the current project
 npx @tokz/cli audit --all # static report across every project on this machine
+npx @tokz/cli blocks      # Claude usage by rolling 5-hour billing window
 
 npm i -g @tokz/cli        # installs the `tokz` command
 tokz                      # then just: tokz
 ```
+
+## Blocks (5-hour billing windows)
+
+`tokz blocks` groups Claude usage into the rolling 5-hour windows Claude's
+usage limits operate on: one row per block with models, total tokens, and
+cost, plus burn rate (tok/min and $/hr), projected tokens/cost by block end,
+and time remaining for the active block. `--active` shows only the current
+block, `--recent` the last 3 days, `--token-limit N` (or `max` — your
+biggest past block) adds ⚠️/🚨 warnings, `--session-length H` changes the
+window, `--json` for raw output.
+
+## Statusline for Claude Code
+
+`tokz statusline` renders one compact line for Claude Code's status bar —
+model, session cost, today's total, active block cost with time left, burn
+rate, and context usage with percentage. Wire it up in
+`~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": { "type": "command", "command": "npx @tokz/cli statusline" }
+}
+```
+
+It reads only transcripts touched in the last few hours and never fetches
+pricing from the network on this path, so it stays fast.
+
+## Dates, ranges, and timezones
+
+- `tokz audit --since 2026-07-01 --until 2026-07-15` — any inclusive date
+  range (also accepts `YYYYMMDD`); `--days N` still works.
+- `tokz audit --weekly` / `--monthly` — appends an activity table rolled up
+  by ISO week (keyed by its Monday) or calendar month. In the TUI the
+  Activity tab cycles day · week · month with `g`.
+- `tokz --timezone local audit …` — group days in your system timezone, or
+  any IANA zone (`--timezone Asia/Amman`); default is UTC.
 
 ## Interactive TUI
 

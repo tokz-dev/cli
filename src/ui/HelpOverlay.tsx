@@ -7,6 +7,7 @@ const KEYS: [string, string][] = [
   ["/", "filter project list (esc clears)"],
   ["s", "cycle project sort: cost · recent · name"],
   ["t", "cycle timeframe: all · today · yesterday · 7d · 30d"],
+  ["g", "Activity tab: group by day · week · month"],
   ["esc", "go back"],
   ["?", "toggle this help"],
   ["q", "quit"],

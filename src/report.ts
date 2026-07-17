@@ -1,7 +1,17 @@
 import Table from "cli-table3";
 import pc from "picocolors";
 import { usd, tok, pct1 } from "./format.js";
-import type { AuditReport } from "./types.js";
+import type { AuditReport, DailyStat } from "./types.js";
+
+/** Activity table for daily stats already rolled up by week or month. */
+export function renderActivity(rows: DailyStat[], unit: "week" | "month"): string {
+  const head = unit === "week" ? "Week of" : "Month";
+  const table = new Table({ head: [head, "Cost", "Input", "Cache read", "Cache write", "Output", "Turns"] });
+  for (const d of rows) {
+    table.push([d.date, usd(d.costUsd), tok(d.inputTokens), tok(d.cacheReadTokens), tok(d.cacheCreationTokens), tok(d.outputTokens), String(d.turns)]);
+  }
+  return `${pc.bold(`Activity by ${unit}`)}\n${table.toString()}`;
+}
 
 export function renderReport(report: AuditReport): string {
   const parts: string[] = [];

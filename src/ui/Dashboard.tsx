@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Box, Text, useInput } from "ink";
+import { groupDaily, type Grouping } from "../dates.js";
 import type { ProjectAudit } from "../projects.js";
 import type { AuditReport } from "../types.js";
 import { usd, compact, pct, pct1, shortModel, duration, relativeDate } from "../format.js";
@@ -281,24 +282,42 @@ function Sessions({ r, cols }: { r: AuditReport; cols: number }) {
   );
 }
 
-function Activity({ r, chartW, cols }: { r: AuditReport; chartW: number; cols: number }) {
-  const days = lastDays(r, 21).filter((d, i, all) => d.costUsd > 0 || i >= all.length - 14);
+function Activity({
+  r,
+  chartW,
+  cols,
+  grouping,
+}: {
+  r: AuditReport;
+  chartW: number;
+  cols: number;
+  grouping: Grouping;
+}) {
+  if (r.daily.length === 0) return <Text dimColor>no dated activity</Text>;
   const wide = cols >= 66;
-  const rows = days.slice(-16).map((d) => ({
-    label: `${d.date} ${relativeDate(d.date) === "today" ? "◂" : " "}`,
+  const source =
+    grouping === "day"
+      ? lastDays(r, 21).filter((d, i, all) => d.costUsd > 0 || i >= all.length - 14)
+      : groupDaily(r.daily, grouping);
+  const rows = source.slice(-16).map((d) => ({
+    label:
+      grouping === "day"
+        ? `${d.date} ${relativeDate(d.date) === "today" ? "◂" : " "}`
+        : grouping === "week"
+          ? `wk ${d.date}`
+          : d.date,
     value: d.costUsd,
     display:
       d.costUsd > 0 ? (wide ? `${usd(d.costUsd)} · ${compact(d.turns)} turns` : usd(d.costUsd)) : "—",
   }));
-  if (r.daily.length === 0) return <Text dimColor>no dated activity</Text>;
   const avg = r.totalCostUsd / Math.max(1, r.daily.length);
   return (
     <Box flexDirection="column">
       <BarChart rows={rows} width={chartW} />
       <Box marginTop={1}>
         <Text dimColor>
-          {r.daily.length} active days · avg {usd(avg)}/active day · projected{" "}
-          {usd(r.monthlyProjectionUsd)}/mo
+          <Text color={theme.accent}>g</Text> group: {grouping} · {r.daily.length} active days · avg{" "}
+          {usd(avg)}/active day · projected {usd(r.monthlyProjectionUsd)}/mo
         </Text>
       </Box>
     </Box>
@@ -315,12 +334,15 @@ export function Dashboard({
   timeframe?: string;
 }) {
   const [tab, setTab] = useState(initialTab);
+  const [grouping, setGrouping] = useState<Grouping>("day");
   const { cols } = useTerminalSize();
   useInput((input, key) => {
     const n = Number.parseInt(input, 10);
     if (n >= 1 && n <= TABS.length) setTab(n - 1);
     if (key.rightArrow) setTab((t) => (t + 1) % TABS.length);
     if (key.leftArrow) setTab((t) => (t + TABS.length - 1) % TABS.length);
+    if (input === "g")
+      setGrouping((g) => (g === "day" ? "week" : g === "week" ? "month" : "day"));
   });
   const r = project.report;
   const span = r.spanStart && r.spanEnd ? `${r.spanStart} → ${r.spanEnd}` : `${r.spanDays}d`;
@@ -355,7 +377,7 @@ export function Dashboard({
         {tab === 2 ? <Tools r={r} chartW={chartW} cols={cols} /> : null}
         {tab === 3 ? <Servers r={r} cols={cols} /> : null}
         {tab === 4 ? <Sessions r={r} cols={cols} /> : null}
-        {tab === 5 ? <Activity r={r} chartW={chartW} cols={cols} /> : null}
+        {tab === 5 ? <Activity r={r} chartW={chartW} cols={cols} grouping={grouping} /> : null}
       </Box>
     </Box>
   );
