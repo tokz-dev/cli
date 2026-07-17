@@ -1,5 +1,7 @@
 # tokz
 
+[![CI](https://github.com/tokz-dev/cli/actions/workflows/ci.yml/badge.svg)](https://github.com/tokz-dev/cli/actions/workflows/ci.yml)
+
 **See where your coding agents' tokens — and dollars — actually go.**
 
 tokz reads the session logs your coding agents already write to disk and turns
