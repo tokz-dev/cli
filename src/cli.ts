@@ -4,6 +4,7 @@ import { Command } from "commander";
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 import { buildReport } from "./attribute.js";
 import { findTranscripts } from "./discover.js";
+import { initPricing } from "./livePricing.js";
 import { findMcpServers } from "./mcp.js";
 import { renderReport } from "./report.js";
 import { parseTranscript, type CountedUsage } from "./transcript.js";
@@ -13,6 +14,7 @@ const program = new Command();
 program
   .name("tokz")
   .description("Audit where your coding agent's context window and API dollars go.")
+  .option("--offline", "don't fetch live pricing; use cached/built-in rates")
   .version(version);
 
 program
@@ -23,7 +25,10 @@ program
   .option("--days <n>", "only include the last N days of activity")
   .action(async (project: string | undefined, opts: { all?: boolean; json?: boolean; days?: string }) => {
     const projectPath = project ?? process.cwd();
-    const transcripts = await findTranscripts(opts.all ? undefined : projectPath);
+    const [transcripts] = await Promise.all([
+      findTranscripts(opts.all ? undefined : projectPath),
+      initPricing({ offline: program.opts().offline as boolean | undefined }),
+    ]);
     if (transcripts.length === 0) {
       console.error(`No Claude Code transcripts found for ${opts.all ? "any project" : projectPath}.`);
       process.exitCode = 1;
@@ -43,6 +48,7 @@ program
   });
 
 program.action(async () => {
+  await initPricing({ offline: program.opts().offline as boolean | undefined });
   if (!process.stdout.isTTY) {
     const transcripts = await findTranscripts(undefined);
     if (transcripts.length === 0) {

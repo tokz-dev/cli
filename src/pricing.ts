@@ -7,6 +7,8 @@ export interface ModelPrice {
   cacheReadMult?: number;
   /** cache write price as a fraction of input price (default: provider-specific) */
   cacheWriteMult?: number;
+  /** 1-hour-tier cache write price as a fraction of input price (Anthropic bills 2x) */
+  cacheWrite1hMult?: number;
 }
 
 // USD per million tokens. Anthropic cached 2026-06-24; OpenAI/Google cached 2026-07-17.
@@ -49,17 +51,41 @@ const CLAUDE_FALLBACK = PRICES["claude-opus-4-8"];
 // Unknown non-Claude models cost $0 rather than being priced like the wrong provider.
 const UNKNOWN: ModelPrice = { inputPerMTok: 0, outputPerMTok: 0 };
 
-export function resolvePrice(modelId: string): ModelPrice {
+// Live pricing (LiteLLM's model catalog) loaded at CLI startup by
+// initPricing(); the static PRICES table above is the offline seed.
+let livePrices: Record<string, ModelPrice> = {};
+const resolveCache = new Map<string, ModelPrice>();
+
+export function setLivePrices(prices: Record<string, ModelPrice>): void {
+  livePrices = prices;
+  resolveCache.clear();
+}
+
+function longestPrefix(modelId: string, table: Record<string, ModelPrice>): ModelPrice | undefined {
   let best: ModelPrice | undefined;
   let bestLen = -1;
-  for (const [prefix, price] of Object.entries(PRICES)) {
+  for (const [prefix, price] of Object.entries(table)) {
     if (modelId.startsWith(prefix) && prefix.length > bestLen) {
       best = price;
       bestLen = prefix.length;
     }
   }
-  if (best) return best;
-  return modelId.startsWith("claude") ? CLAUDE_FALLBACK : UNKNOWN;
+  return best;
+}
+
+export function resolvePrice(modelId: string): ModelPrice {
+  const hit = resolveCache.get(modelId);
+  if (hit) return hit;
+  // Live exact match wins; the curated static table handles prefix matching
+  // for dated ids (and keeps intentional overrides); live prefix match is the
+  // catch-all for models the static table has never heard of.
+  const price =
+    livePrices[modelId] ??
+    longestPrefix(modelId, PRICES) ??
+    longestPrefix(modelId, livePrices) ??
+    (modelId.startsWith("claude") ? CLAUDE_FALLBACK : UNKNOWN);
+  resolveCache.set(modelId, price);
+  return price;
 }
 
 export function emptyUsage(): UsageTotals {
@@ -77,9 +103,9 @@ export function costUsd(usage: UsageTotals, modelId: string): CostBreakdown {
   const cacheRead = (usage.cacheReadTokens / 1e6) * p.inputPerMTok * readMult;
   const write1h = Math.min(usage.cacheCreation1hTokens ?? 0, usage.cacheCreationTokens);
   const write5m = usage.cacheCreationTokens - write1h;
+  const write1hMult = p.cacheWrite1hMult ?? (p.cacheWriteMult === 0 ? 0 : CACHE_WRITE_1H_MULT);
   const cacheWrite =
-    (write5m / 1e6) * p.inputPerMTok * writeMult +
-    (write1h / 1e6) * p.inputPerMTok * (p.cacheWriteMult ?? CACHE_WRITE_1H_MULT);
+    (write5m / 1e6) * p.inputPerMTok * writeMult + (write1h / 1e6) * p.inputPerMTok * write1hMult;
   const output = (usage.outputTokens / 1e6) * p.outputPerMTok;
   return { input, cacheRead, cacheWrite, output, total: input + cacheRead + cacheWrite + output };
 }
