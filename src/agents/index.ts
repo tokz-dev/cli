@@ -4,15 +4,22 @@ import { join } from "node:path";
 import type { LoadProgress } from "../projects.js";
 import { antigravityAdapter } from "./antigravity.js";
 import { claudeAdapter } from "./claude.js";
+import { codebuffAdapter } from "./codebuff.js";
 import { codexAdapter } from "./codex.js";
+import { droidAdapter } from "./droid.js";
+import { geminiAdapter } from "./gemini.js";
+import { kimiAdapter } from "./kimi.js";
+import { openclawAdapter } from "./openclaw.js";
 import { opencodeAdapter } from "./opencode.js";
+import { piAdapter } from "./pi.js";
+import { qwenAdapter } from "./qwen.js";
 import type { AgentAdapter, AgentData } from "./types.js";
 
 function detectOnly(
   id: string,
   name: string,
   reason: string,
-  ...pathParts: string[]
+  ...pathCandidates: string[][]
 ): AgentAdapter {
   return {
     id,
@@ -20,12 +27,15 @@ function detectOnly(
     supported: false,
     unsupportedReason: reason,
     async detect(home = homedir()) {
-      try {
-        await access(join(home, ...pathParts));
-        return true;
-      } catch {
-        return false;
+      for (const parts of pathCandidates) {
+        try {
+          await access(join(home, ...parts));
+          return true;
+        } catch {
+          // try next candidate
+        }
       }
+      return false;
     },
     loadProjects: async () => [],
   };
@@ -43,8 +53,23 @@ export const ADAPTERS: AgentAdapter[] = [
   claudeAdapter,
   codexAdapter,
   opencodeAdapter,
+  geminiAdapter,
+  qwenAdapter,
+  droidAdapter,
+  codebuffAdapter,
+  openclawAdapter,
+  kimiAdapter,
+  piAdapter,
   antigravityAdapter,
-  detectOnly("cursor", "Cursor CLI", "sessions live in SQLite; parsing not supported yet", ".cursor", "chats"),
+  // Detected but not parsed yet: these keep usage in SQLite (goose/hermes/kilo/
+  // cursor) or formats we haven't wired (Copilot's OpenTelemetry spans, Amp's
+  // usage ledger). detectOnly surfaces them with the reason instead of hiding.
+  detectOnly("goose", "Goose", "usage lives in a SQLite DB (sessions.db) — no offline SQLite reader yet", [".local", "share", "goose", "sessions", "sessions.db"], ["Library", "Application Support", "goose", "sessions", "sessions.db"]),
+  detectOnly("hermes", "Hermes", "usage lives in a SQLite DB (state.db) — no offline SQLite reader yet", [".hermes", "state.db"]),
+  detectOnly("kilo", "Kilo", "usage lives in a SQLite DB (kilo.db) — no offline SQLite reader yet", [".local", "share", "kilo", "kilo.db"]),
+  detectOnly("copilot", "GitHub Copilot CLI", "usage is OpenTelemetry spans — parsing not wired yet", [".copilot", "otel"]),
+  detectOnly("amp", "Amp", "usage-ledger thread format — parsing not wired yet", [".local", "share", "amp"]),
+  detectOnly("cursor", "Cursor CLI", "sessions live in SQLite; parsing not supported yet", [".cursor", "chats"]),
 ];
 
 export async function loadAllAgents(

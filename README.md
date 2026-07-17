@@ -2,16 +2,18 @@
 
 Audit where your coding agents' context windows — and API dollars — actually go.
 
-Supports multiple agentic coders: **Claude Code** (`~/.claude/projects`),
-**OpenAI Codex CLI** (`~/.codex/sessions` rollout files, cumulative
-token-count deltas), **OpenCode** (`~/.local/share/opencode/storage`), and
-**Antigravity CLI** (`~/.gemini/antigravity-cli`). Antigravity stores no
-token counts on disk, so its numbers are *estimates*: per-model turn counts
-are read from the conversation databases' generation-metadata records,
-projects and dates from `history.jsonl`, and tokens are derived from
-conversation content size (~4 chars/token) — the UI labels it "estimated"
-everywhere. Cursor CLI is detected and listed with the reason it can't be
-parsed yet. The TUI opens with an agent picker — choose which agent's
+Supports the same agent coverage as ccusage. Fully parsed: **Claude Code**
+(`~/.claude/projects`), **OpenAI Codex CLI** (`~/.codex/sessions`),
+**OpenCode**, **Gemini CLI** (`~/.gemini/tmp`), **Qwen Code** (`~/.qwen`),
+**Droid / Factory** (`~/.factory/sessions`), **Codebuff** (`~/.config/manicode*`),
+**OpenClaw**, **Kimi CLI**, and **pi-agent**. **Antigravity CLI**
+(`~/.gemini/antigravity-cli`) is supported but *estimated* — it stores no
+token counts on disk, so per-model turn counts come from the conversation
+databases and tokens are derived from content size (~4 chars/token); the UI
+labels it "estimated". Agents that keep usage in SQLite (**Goose**, **Hermes**,
+**Kilo**, **Cursor**) or formats not wired yet (**GitHub Copilot CLI**'s
+OpenTelemetry spans, **Amp**'s usage ledger) are detected and listed with the
+reason they aren't parsed. The TUI opens with an agent picker — choose which agent's
 analytics to explore; everything downstream (projects, dashboards,
 timeframes) is scoped to it.
 
