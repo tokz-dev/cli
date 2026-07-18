@@ -25,15 +25,9 @@ const session: SessionStats = {
 
 describe("timeframeRange", () => {
   it("computes inclusive UTC date ranges", () => {
-    expect(timeframeRange("all", NOW)).toBeUndefined();
     expect(timeframeRange("today", NOW)).toEqual({ from: "2026-07-16", to: "2026-07-16" });
     expect(timeframeRange("yesterday", NOW)).toEqual({ from: "2026-07-15", to: "2026-07-15" });
     expect(timeframeRange("7d", NOW)).toEqual({ from: "2026-07-10", to: "2026-07-16" });
-  });
-
-  it("cycles through all timeframes and wraps", () => {
-    expect(nextTimeframe("all")).toBe("today");
-    expect(nextTimeframe("30d")).toBe("all");
   });
 });
 

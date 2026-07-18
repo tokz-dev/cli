@@ -80,7 +80,7 @@ export function App({
   );
   const [help, setHelp] = useState(false);
   const [filterCapture, setFilterCapture] = useState(false);
-  const [timeframe, setTimeframe] = useState<TimeframeId>("all");
+  const [timeframe, setTimeframe] = useState<TimeframeId>("30d");
   const scoped = useMemo(
     () => applyTimeframe(activeProjects, timeframeRange(timeframe)),
     [activeProjects, timeframe],
@@ -195,7 +195,7 @@ export function App({
             HINTS.agents
           ) : (
             <>
-              <Text color={timeframe === "all" ? undefined : "yellow"}>⏱ {tfLabel}</Text>
+              <Text color="yellow">⏱ {tfLabel}</Text>
               {" · t cycle · "}
               {HINTS[view]}
             </>

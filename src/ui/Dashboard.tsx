@@ -361,7 +361,7 @@ export function Dashboard({
           ) : null}
         </Text>
         <Text dimColor>
-          {timeframe && timeframe !== "All time" ? (
+          {timeframe ? (
             <Text color="yellow">{timeframe} · </Text>
           ) : null}
           {r.sessionCount} sessions · {span}

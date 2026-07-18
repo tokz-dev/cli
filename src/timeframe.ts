@@ -1,7 +1,6 @@
 import { dayKey } from "./dates.js";
 
 export const TIMEFRAMES = [
-  { id: "all", label: "All time" },
   { id: "today", label: "Today" },
   { id: "yesterday", label: "Yesterday" },
   { id: "7d", label: "Last 7 days" },
@@ -29,8 +28,6 @@ export function nextTimeframe(id: TimeframeId): TimeframeId {
 /** undefined = no filtering (all time) */
 export function timeframeRange(id: TimeframeId, now: number = Date.now()): DateRange | undefined {
   switch (id) {
-    case "all":
-      return undefined;
     case "today":
       return { from: isoDay(0, now), to: isoDay(0, now) };
     case "yesterday":

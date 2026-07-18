@@ -6,7 +6,7 @@ const KEYS: [string, string][] = [
   ["← → or 1–6", "switch dashboard tab"],
   ["/", "filter project list (esc clears)"],
   ["s", "cycle project sort: cost · recent · name"],
-  ["t", "cycle timeframe: all · today · yesterday · 7d · 30d"],
+  ["t", "cycle timeframe: today · yesterday · 7d · 30d"],
   ["g", "Activity tab: group by day · week · month"],
   ["esc", "go back"],
   ["?", "toggle this help"],
