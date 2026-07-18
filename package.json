@@ -1,9 +1,43 @@
 {
   "name": "@tokz/cli",
   "version": "0.2.9",
-  "description": "Audit where your coding agent's context window and API dollars go.",
-  "type": "module",
+  "description": "See where your coding agents' tokens and dollars actually go.",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "ai",
+    "agent",
+    "coding-agent",
+    "cli",
+    "token",
+    "tokens",
+    "token-usage",
+    "context-window",
+    "prompt",
+    "prompt-engineering",
+    "mcp",
+    "model-context-protocol",
+    "transcript",
+    "audit",
+    "cost",
+    "api-cost",
+    "analytics",
+    "developer-tools",
+    "productivity",
+    "typescript",
+    "terminal"
+  ],
+  "homepage": "https://github.com/tokz-dev/cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tokz-dev/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tokz-dev/cli/issues"
+  },
   "license": "MIT",
+  "type": "module",
   "engines": {
     "node": ">=20.9.0"
   },
