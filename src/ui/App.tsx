@@ -49,10 +49,26 @@ export function App({
   initialSelected?: number;
 }) {
   const { exit } = useApp();
-  const agentList = useMemo(
-    () => agents ?? wrapProjects(projects ?? []),
-    [agents, projects],
-  );
+  const rawAgents = useMemo(() => agents ?? wrapProjects(projects ?? []), [agents, projects]);
+  // When more than one agent has data, prepend a synthetic "All agents" entry
+  // that merges every agent's projects, so its aggregate is the cross-agent
+  // total and its project list spans every agent.
+  const agentList = useMemo(() => {
+    const withData = rawAgents.filter((a) => a.projects.length > 0);
+    if (withData.length <= 1) return rawAgents;
+    const combined: AgentData = {
+      adapter: {
+        id: "__all_agents__",
+        name: "All agents",
+        supported: true,
+        detect: async () => true,
+        loadProjects: async () => [],
+      },
+      detected: true,
+      projects: withData.flatMap((a) => a.projects),
+    };
+    return [combined, ...rawAgents];
+  }, [rawAgents]);
   const multiAgent = agentList.length > 1;
   const firstWithData = Math.max(0, agentList.findIndex((a) => a.projects.length > 0));
   const [agentIdx, setAgentIdx] = useState(firstWithData);

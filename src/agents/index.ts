@@ -2,10 +2,12 @@ import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { LoadProgress } from "../projects.js";
+import { ampAdapter } from "./amp.js";
 import { antigravityAdapter } from "./antigravity.js";
 import { claudeAdapter } from "./claude.js";
 import { codebuffAdapter } from "./codebuff.js";
 import { codexAdapter } from "./codex.js";
+import { copilotAdapter } from "./copilot.js";
 import { droidAdapter } from "./droid.js";
 import { geminiAdapter } from "./gemini.js";
 import { gooseAdapter } from "./goose.js";
@@ -63,14 +65,13 @@ export const ADAPTERS: AgentAdapter[] = [
   kiloAdapter,
   gooseAdapter,
   hermesAdapter,
+  copilotAdapter,
+  ampAdapter,
   piAdapter,
   antigravityAdapter,
-  // Detected but not parsed: Copilot uses OpenTelemetry spans, Amp a usage
-  // ledger (formats not wired yet). Cursor is intentionally absent — it stores
-  // no token counts on disk (usage is server-side, reachable only with auth),
-  // which is out of scope for an offline tool.
-  detectOnly("copilot", "GitHub Copilot CLI", "usage is OpenTelemetry spans — parsing not wired yet", [".copilot", "otel"]),
-  detectOnly("amp", "Amp", "usage-ledger thread format — parsing not wired yet", [".local", "share", "amp"]),
+  // Cursor keeps no token counts on disk (usage is server-side, reachable only
+  // with auth), so there's nothing to parse offline — surfaced with the reason.
+  detectOnly("cursor", "Cursor", "no token counts stored locally — usage is server-side", [".cursor"]),
 ];
 
 export async function loadAllAgents(

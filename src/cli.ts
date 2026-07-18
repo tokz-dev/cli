@@ -5,6 +5,7 @@ const { version } = createRequire(import.meta.url)("../package.json") as { versi
 import { buildReport } from "./attribute.js";
 import { buildBlocks, type UsageEvent } from "./blocks.js";
 import { renderBlocksReport } from "./blocksReport.js";
+import { loadConfig } from "./config.js";
 import { groupDaily, parseDateArg, setTimezone, type Grouping } from "./dates.js";
 import { findTranscripts } from "./discover.js";
 import { initPricing } from "./livePricing.js";
@@ -21,10 +22,13 @@ program
   .option("--timezone <zone>", 'group days in this timezone: "utc" (default), "local", or an IANA name')
   .version(version);
 
+// CLI flags override ~/.tokz/config.json, which overrides built-in defaults.
+const config = loadConfig();
+
 function applyGlobals(): { offline?: boolean } {
   const opts = program.opts<{ offline?: boolean; timezone?: string }>();
-  setTimezone(opts.timezone);
-  return { offline: opts.offline };
+  setTimezone(opts.timezone ?? config.timezone);
+  return { offline: opts.offline ?? config.offline };
 }
 
 async function parseAll(projectPath?: string, events?: UsageEvent[]) {
@@ -71,7 +75,7 @@ program
     }
     const servers = opts.all ? [] : await findMcpServers(projectPath);
 
-    const days = opts.days ? Number.parseInt(opts.days, 10) : undefined;
+    const days = opts.days ? Number.parseInt(opts.days, 10) : config.days;
     const isoDay = (offset: number) => new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10);
     const since = parseDateArg(opts.since);
     const until = parseDateArg(opts.until);
@@ -146,8 +150,9 @@ program
       // no/invalid stdin: still render what we can
     }
     const valid = ["auto", "cc", "calc", "both"] as const;
-    const costSource = valid.includes((opts.costSource ?? "auto") as (typeof valid)[number])
-      ? ((opts.costSource ?? "auto") as (typeof valid)[number])
+    const requested = opts.costSource ?? config.costSource ?? "auto";
+    const costSource = valid.includes(requested as (typeof valid)[number])
+      ? (requested as (typeof valid)[number])
       : "auto";
     console.log(await sl.statusline(input as Record<string, never>, Date.now(), undefined, { costSource }));
   });

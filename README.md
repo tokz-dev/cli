@@ -41,20 +41,31 @@ tokz auto-detects each agent from its local data directory. No configuration.
 | Kilo | `~/.local/share/kilo/kilo.db` | ✅ parsed (SQLite) |
 | Goose | `~/.local/share/goose` | ✅ parsed (SQLite) |
 | Hermes | `~/.hermes/state.db` | ✅ parsed (SQLite) |
+| GitHub Copilot CLI | `~/.copilot/otel` | ✅ parsed (OpenTelemetry) |
+| Amp | `~/.local/share/amp` | ✅ parsed |
 | Antigravity | `~/.gemini/antigravity-cli` | ≈ estimated¹ |
-| GitHub Copilot CLI | `~/.copilot/otel` | 🔍 detected, not parsed² |
-| Amp | `~/.local/share/amp` | 🔍 detected, not parsed² |
+| Cursor | `~/.cursor` | 🔍 detected, not parsed² |
 
 ¹ Antigravity stores no token counts on disk. tokz reads real per-model turn
 counts from its conversation databases and estimates tokens from content size
 (~4 chars/token); the UI labels every Antigravity number **estimated**.
 
-² Detected and listed with the reason, but not yet parsed: Copilot stores usage
-as OpenTelemetry spans, Amp as a usage ledger. (Cursor is intentionally left
-out — it keeps no token counts locally; usage lives server-side behind auth.)
+² Cursor keeps no token counts locally — its usage lives server-side behind
+auth — so it's surfaced with that reason rather than parsed.
 
-The three SQLite-backed agents are read with a small built-in pure-JS SQLite
-reader, so there's no native dependency and `npx` just works.
+The SQLite-backed agents are read with a small built-in pure-JS SQLite reader,
+so there's no native dependency and `npx` just works. When more than one agent
+has data, the picker adds an **All agents** row that merges every agent's
+projects into one cross-agent total.
+
+## Config file (optional)
+
+Drop defaults in `~/.tokz/config.json` so you don't retype flags; any CLI flag
+still overrides it:
+
+```json
+{ "timezone": "local", "offline": false, "costSource": "auto", "days": 30 }
+```
 
 ## Interactive TUI
 

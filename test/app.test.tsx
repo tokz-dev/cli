@@ -75,6 +75,24 @@ describe("App", () => {
     expect(lastFrame()).toContain("Browse projects");
   });
 
+  it("prepends an All agents entry merging every agent's projects when 2+ have data", () => {
+    const agents = [
+      {
+        adapter: { id: "claude", name: "Claude Code", supported: true, detect: async () => true, loadProjects: async () => [] },
+        detected: true,
+        projects: [mk("/proj-a", 5)],
+      },
+      {
+        adapter: { id: "codex", name: "OpenAI Codex", supported: true, detect: async () => true, loadProjects: async () => [] },
+        detected: true,
+        projects: [mk("/proj-b", 3)],
+      },
+    ];
+    const { lastFrame } = render(<App agents={agents} />);
+    expect(lastFrame()).toContain("All agents");
+    expect(lastFrame()).toContain("$8.00"); // 5 + 3 across both agents
+  });
+
   it("opens the help overlay on ?", async () => {
     const { lastFrame, stdin } = render(<App projects={[mk("/proj-a", 5)]} />);
     await new Promise((r) => setTimeout(r, 50)); // let input hooks mount
