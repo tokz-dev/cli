@@ -12,10 +12,27 @@ import type { SessionStats } from "../types.js";
 export interface UsageRecord {
   model: string;
   ts?: string; // ISO timestamp, if the source records one
+  /** Stable per-event id (message/response id) when the source provides one. */
+  id?: string;
   input: number;
   output: number;
   cacheRead: number;
   cacheWrite: number;
+}
+
+/**
+ * Identity for dropping duplicate usage events — the same inference re-read from
+ * a resumed/forked session, the same session found under two scanned roots, or
+ * an idempotent re-run. Scoped by a stable id (preferred) or the timestamp, plus
+ * the model and every token count, so two events collapse only when they are
+ * byte-for-byte identical. Distinct usage (any differing token) is always kept,
+ * and a record with neither id nor timestamp is never deduped (returns
+ * undefined) since it has no reliable identity.
+ */
+export function recordDedupKey(r: UsageRecord): string | undefined {
+  const scope = r.id ?? r.ts;
+  if (!scope) return undefined;
+  return `${scope}|${r.model}|${r.input}|${r.output}|${r.cacheRead}|${r.cacheWrite}`;
 }
 
 export async function readJson(file: string): Promise<unknown> {
@@ -44,15 +61,27 @@ export async function readJsonl(file: string): Promise<unknown[]> {
   return out;
 }
 
-/** Build one SessionStats from a session's usage records (all skipped if empty). */
+/**
+ * Build one SessionStats from a session's usage records (all skipped if empty).
+ * Pass a shared `seen` set across every file/session of an agent to drop
+ * duplicate events (see recordDedupKey); omit it to count every record.
+ */
 export function sessionFromRecords(
   file: string,
   cwd: string | undefined,
   records: UsageRecord[],
+  seen?: Set<string>,
 ): SessionStats {
   const stats: SessionStats = { file, cwd, usageByModel: {}, toolCalls: {}, toolCostUsd: {}, dailyUsage: {} };
   for (const r of records) {
     if (r.input + r.output + r.cacheRead + r.cacheWrite === 0) continue;
+    if (seen) {
+      const key = recordDedupKey(r);
+      if (key !== undefined) {
+        if (seen.has(key)) continue;
+        seen.add(key);
+      }
+    }
     if (r.ts) {
       if (!stats.firstTs || r.ts < stats.firstTs) stats.firstTs = r.ts;
       if (!stats.lastTs || r.ts > stats.lastTs) stats.lastTs = r.ts;

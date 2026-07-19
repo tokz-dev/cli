@@ -14,7 +14,7 @@ function qwenRoot(home?: string): string {
   return process.env.QWEN_DATA_DIR ?? join(home ?? homedir(), ".qwen");
 }
 
-async function parseFile(file: string): Promise<SessionStats> {
+async function parseFile(file: string, seen: Set<string>): Promise<SessionStats> {
   const records: UsageRecord[] = [];
   for (const line of await readJsonl(file)) {
     const meta = (line as { usageMetadata?: unknown }).usageMetadata;
@@ -25,13 +25,14 @@ async function parseFile(file: string): Promise<SessionStats> {
     records.push({
       model: str(line, "model") ?? "qwen-unknown",
       ts: str(line, "timestamp"),
+      id: str(line, "id") ?? str(line, "messageId") ?? str(line, "message_id"),
       input: Math.max(0, prompt - cached),
       output: pickNum(meta, ["candidatesTokenCount"]) + reasoning,
       cacheRead: cached,
       cacheWrite: 0,
     });
   }
-  return sessionFromRecords(file, undefined, records);
+  return sessionFromRecords(file, undefined, records, seen);
 }
 
 export async function loadQwenProjects(
@@ -42,10 +43,11 @@ export async function loadQwenProjects(
     () => [],
   );
   const sessions: SessionStats[] = [];
+  const seen = new Set<string>();
   let parsed = 0;
   for (const f of files) {
     onProgress?.({ parsed, total: files.length, currentProject: "Qwen sessions" });
-    sessions.push(await parseFile(f));
+    sessions.push(await parseFile(f, seen));
     parsed += 1;
     onProgress?.({ parsed, total: files.length, currentProject: "Qwen sessions" });
   }

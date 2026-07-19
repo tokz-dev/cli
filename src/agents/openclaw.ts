@@ -23,7 +23,7 @@ function modelFrom(obj: unknown): string | undefined {
   return str(obj, "modelId") ?? str(obj, "model");
 }
 
-async function parseFile(file: string): Promise<SessionStats> {
+async function parseFile(file: string, seen: Set<string>): Promise<SessionStats> {
   const records: UsageRecord[] = [];
   let currentModel: string | undefined;
   for (const line of await readJsonl(file)) {
@@ -38,13 +38,14 @@ async function parseFile(file: string): Promise<SessionStats> {
     records.push({
       model,
       ts: str(l.message, "timestamp") ?? str(l, "timestamp"),
+      id: str(l.message, "id") ?? str(l, "id") ?? str(l.message, "messageId"),
       input: pickNum(usage, ["input"]),
       output: pickNum(usage, ["output"]),
       cacheRead: pickNum(usage, ["cacheRead"]),
       cacheWrite: pickNum(usage, ["cacheWrite"]),
     });
   }
-  return sessionFromRecords(file, undefined, records);
+  return sessionFromRecords(file, undefined, records, seen);
 }
 
 export async function loadOpenclawProjects(
@@ -56,10 +57,11 @@ export async function loadOpenclawProjects(
     files.push(...(await glob(["**/*.jsonl", "**/*.jsonl.*"], { cwd: root, absolute: true }).catch(() => [])));
   }
   const sessions: SessionStats[] = [];
+  const seen = new Set<string>();
   let parsed = 0;
   for (const f of files) {
     onProgress?.({ parsed, total: files.length, currentProject: "OpenClaw sessions" });
-    sessions.push(await parseFile(f));
+    sessions.push(await parseFile(f, seen));
     parsed += 1;
     onProgress?.({ parsed, total: files.length, currentProject: "OpenClaw sessions" });
   }

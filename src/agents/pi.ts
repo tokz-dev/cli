@@ -13,7 +13,7 @@ function piRoot(home?: string): string {
   return process.env.PI_AGENT_DIR ?? join(home ?? homedir(), ".pi", "agent", "sessions");
 }
 
-async function parseFile(file: string): Promise<SessionStats> {
+async function parseFile(file: string, seen: Set<string>): Promise<SessionStats> {
   const records: UsageRecord[] = [];
   for (const line of await readJsonl(file)) {
     const msg = (line as { message?: unknown }).message;
@@ -22,13 +22,14 @@ async function parseFile(file: string): Promise<SessionStats> {
     records.push({
       model: str(msg, "model") ?? "pi-unknown",
       ts: str(line, "timestamp"),
+      id: str(msg, "id") ?? str(line, "id") ?? str(msg, "messageId"),
       input: pickNum(usage, ["input"]),
       output: pickNum(usage, ["output"]),
       cacheRead: pickNum(usage, ["cacheRead"]),
       cacheWrite: pickNum(usage, ["cacheWrite"]),
     });
   }
-  return sessionFromRecords(file, undefined, records);
+  return sessionFromRecords(file, undefined, records, seen);
 }
 
 export async function loadPiProjects(
@@ -37,10 +38,11 @@ export async function loadPiProjects(
 ): Promise<ProjectAudit[]> {
   const files = await glob(["**/*.jsonl"], { cwd: piRoot(home), absolute: true }).catch(() => []);
   const sessions: SessionStats[] = [];
+  const seen = new Set<string>();
   let parsed = 0;
   for (const f of files) {
     onProgress?.({ parsed, total: files.length, currentProject: "pi sessions" });
-    sessions.push(await parseFile(f));
+    sessions.push(await parseFile(f, seen));
     parsed += 1;
     onProgress?.({ parsed, total: files.length, currentProject: "pi sessions" });
   }

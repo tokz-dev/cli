@@ -51,9 +51,11 @@ function attrStr(attrs: Attrs, keys: string[]): string | undefined {
   return undefined;
 }
 
-export function parseOtelFile(records: unknown[]): Map<string, UsageRecord[]> {
+export function parseOtelFile(
+  records: unknown[],
+  seen: Set<string> = new Set(),
+): Map<string, UsageRecord[]> {
   const bySession = new Map<string, UsageRecord[]>();
-  const seen = new Set<string>();
   for (const rec of records) {
     const attrs = (rec as { attributes?: Attrs }).attributes;
     if (!attrs || typeof attrs !== "object") continue;
@@ -97,10 +99,13 @@ export async function loadCopilotProjects(
 ): Promise<ProjectAudit[]> {
   const files = await glob(["**/*.jsonl"], { cwd: copilotDir(home), absolute: true }).catch(() => []);
   const bySession = new Map<string, UsageRecord[]>();
+  // Shared across files so one inference reported in multiple otel logs (same
+  // gen_ai.response.id) is counted once, not once per file.
+  const seen = new Set<string>();
   let parsed = 0;
   for (const f of files) {
     onProgress?.({ parsed, total: files.length, currentProject: "Copilot otel" });
-    for (const [session, records] of parseOtelFile(await readJsonl(f))) {
+    for (const [session, records] of parseOtelFile(await readJsonl(f), seen)) {
       const list = bySession.get(session) ?? [];
       list.push(...records);
       bySession.set(session, list);

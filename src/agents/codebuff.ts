@@ -24,7 +24,7 @@ function isAssistant(msg: unknown): boolean {
   return role === "ai" || role === "agent" || role === "assistant";
 }
 
-async function parseFile(file: string): Promise<SessionStats> {
+async function parseFile(file: string, seen: Set<string>): Promise<SessionStats> {
   const arr = await readJson(file);
   if (!Array.isArray(arr)) return sessionFromRecords(file, undefined, []);
   let fileTs: string | undefined;
@@ -40,6 +40,7 @@ async function parseFile(file: string): Promise<SessionStats> {
     records.push({
       model: str(meta, "model") ?? "codebuff-unknown",
       ts: str(msg, "timestamp") ?? fileTs,
+      id: str(msg, "id") ?? str(msg, "messageId") ?? str(msg, "message_id"),
       input: pickNum(usage, ["inputTokens", "input_tokens"]),
       output: pickNum(usage, ["outputTokens", "output_tokens"]),
       cacheRead: pickNum(usage, ["cacheReadInputTokens", "cache_read_input_tokens", "cachedTokens"]),
@@ -60,10 +61,11 @@ export async function loadCodebuffProjects(
     );
   }
   const sessions: SessionStats[] = [];
+  const seen = new Set<string>();
   let parsed = 0;
   for (const f of files) {
     onProgress?.({ parsed, total: files.length, currentProject: "Codebuff chats" });
-    sessions.push(await parseFile(f));
+    sessions.push(await parseFile(f, seen));
     parsed += 1;
     onProgress?.({ parsed, total: files.length, currentProject: "Codebuff chats" });
   }

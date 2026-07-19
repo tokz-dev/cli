@@ -146,6 +146,44 @@ describe("kimi adapter", () => {
   });
 });
 
+describe("cross-root dedup", () => {
+  it("counts a session found under two scanned roots only once (kimi)", async () => {
+    const h = home();
+    // Same event (same id + tokens) present in both .kimi and .kimi-code.
+    const line = JSON.stringify({
+      id: "msg-1",
+      model: "kimi-k2",
+      timestamp: "2026-07-16T00:00:00Z",
+      message: { payload: { usage: { inputOther: 400, output: 70, inputCacheRead: 25, inputCacheCreation: 5 } } },
+    });
+    write(h, ".kimi/sessions/s/wire.jsonl", line);
+    write(h, ".kimi-code/sessions/s/wire.jsonl", line);
+    const p = await loadKimiProjects(h);
+    const u = usage(p, "kimi-k2");
+    // Without dedup this would be 800; the duplicate copy is dropped.
+    expect(u.inputTokens).toBe(400);
+    expect(u.outputTokens).toBe(70);
+    expect(u.cacheReadTokens).toBe(25);
+  });
+
+  it("keeps two distinct turns that share a timestamp but differ in tokens (gemini)", async () => {
+    const h = home();
+    write(
+      h,
+      ".gemini/tmp/x/log.jsonl",
+      [
+        JSON.stringify({ model: "gemini-3.1-pro", timestamp: "2026-07-15T00:00:00Z", tokens: { prompt: 800, candidates: 100 } }),
+        JSON.stringify({ model: "gemini-3.1-pro", timestamp: "2026-07-15T00:00:00Z", tokens: { prompt: 500, candidates: 60 } }),
+      ].join("\n"),
+    );
+    const p = await loadGeminiProjects(h);
+    const u = usage(p, "gemini-3.1-pro");
+    // Differing token counts -> not a duplicate, both counted (1300 input).
+    expect(u.inputTokens).toBe(1300);
+    expect(u.outputTokens).toBe(160);
+  });
+});
+
 describe("registry", () => {
   it("registers every supported agent, parsed or detect-only", () => {
     const ids = ADAPTERS.map((a) => a.id);

@@ -56,6 +56,58 @@ describe("parseCodexRollout", () => {
     expect(s.toolCostUsd.shell).toBeGreaterThan(0);
   });
 
+  it("prefers last_token_usage and dedups events replayed into forked sessions", async () => {
+    // Codex writes the per-turn amount in last_token_usage; forked sessions
+    // re-log the same token_count event verbatim. A shared `seen` set must
+    // count it once, and per-turn usage must come from last_token_usage
+    // (not a delta of the cumulative total).
+    const event = JSON.stringify({
+      timestamp: "2026-07-10T10:00:00.000Z",
+      type: "event_msg",
+      payload: {
+        type: "token_count",
+        info: {
+          total_token_usage: {
+            input_tokens: 13_501,
+            cached_input_tokens: 11_648,
+            output_tokens: 433,
+            reasoning_output_tokens: 104,
+            total_tokens: 13_934,
+          },
+          last_token_usage: {
+            input_tokens: 13_501,
+            cached_input_tokens: 11_648,
+            output_tokens: 433,
+            reasoning_output_tokens: 104,
+            total_tokens: 13_934,
+          },
+        },
+      },
+    });
+    const meta = JSON.stringify({
+      type: "turn_context",
+      payload: { model: "gpt-5-codex", cwd: "/home/me/api" },
+    });
+    const content = [meta, event].join("\n");
+    const dir = mkdtempSync(join(tmpdir(), "tokz-cdxfork-"));
+    const parent = join(dir, "parent.jsonl");
+    const fork = join(dir, "fork.jsonl");
+    writeFileSync(parent, content);
+    writeFileSync(fork, content);
+
+    const seen = new Set<string>();
+    const a = await parseCodexRollout(parent, seen);
+    const b = await parseCodexRollout(fork, seen);
+
+    const ua = a.usageByModel["gpt-5-codex"];
+    // last_token_usage is the per-turn value: uncached input = 13501 - 11648.
+    expect(ua.inputTokens).toBe(1_853);
+    expect(ua.cacheReadTokens).toBe(11_648);
+    expect(ua.outputTokens).toBe(433);
+    // The forked copy is a replay of the same event -> counted zero times more.
+    expect(b.usageByModel["gpt-5-codex"]).toBeUndefined();
+  });
+
   it("groups codex sessions into projects by cwd", async () => {
     const home = mkdtempSync(join(tmpdir(), "tokz-cdxhome-"));
     const day = join(home, ".codex", "sessions", "2026", "07", "10");

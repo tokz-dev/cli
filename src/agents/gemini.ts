@@ -24,6 +24,7 @@ function recordFrom(node: unknown, model: string | undefined, ts: string | undef
   return {
     model: str(node, "model") ?? model ?? "gemini-unknown",
     ts: str(node, "timestamp") ?? ts,
+    id: str(node, "id") ?? str(node, "messageId") ?? str(node, "message_id") ?? str(node, "responseId"),
     input: pickNum(tokens, IN),
     output: pickNum(tokens, OUT) + reasoning,
     cacheRead: pickNum(tokens, ["cached", "cached_tokens"]),
@@ -31,7 +32,7 @@ function recordFrom(node: unknown, model: string | undefined, ts: string | undef
   };
 }
 
-async function parseFile(file: string): Promise<SessionStats> {
+async function parseFile(file: string, seen: Set<string>): Promise<SessionStats> {
   const records: UsageRecord[] = [];
   const push = (r: UsageRecord | undefined) => r && records.push(r);
   if (file.endsWith(".jsonl")) {
@@ -43,7 +44,7 @@ async function parseFile(file: string): Promise<SessionStats> {
     if (Array.isArray(messages)) for (const m of messages) push(recordFrom(m, model, undefined));
     push(recordFrom(doc, model, undefined));
   }
-  return sessionFromRecords(file, undefined, records);
+  return sessionFromRecords(file, undefined, records, seen);
 }
 
 export async function loadGeminiProjects(
@@ -54,10 +55,11 @@ export async function loadGeminiProjects(
     () => [],
   );
   const sessions: SessionStats[] = [];
+  const seen = new Set<string>();
   let parsed = 0;
   for (const f of files) {
     onProgress?.({ parsed, total: files.length, currentProject: "Gemini logs" });
-    sessions.push(await parseFile(f));
+    sessions.push(await parseFile(f, seen));
     parsed += 1;
     onProgress?.({ parsed, total: files.length, currentProject: "Gemini logs" });
   }

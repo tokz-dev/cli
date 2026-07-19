@@ -20,21 +20,23 @@ function kimiRoots(home?: string): string[] {
   return KIMI_DIRS.map((d) => join(h, d));
 }
 
-async function parseFile(file: string): Promise<SessionStats> {
+async function parseFile(file: string, seen: Set<string>): Promise<SessionStats> {
   const records: UsageRecord[] = [];
   for (const line of await readJsonl(file)) {
     const usage = deepFind(line, USAGE_KEYS);
     if (!usage) continue;
+    const idHost = deepFind(line, ["messageId", "message_id", "id"]);
     records.push({
       model: str(line, "model") ?? "kimi-unknown",
       ts: str(line, "timestamp"),
+      id: idHost && (str(idHost, "messageId") ?? str(idHost, "message_id") ?? str(idHost, "id")),
       input: pickNum(usage, ["inputOther", "input_other"]),
       output: pickNum(usage, ["output"]),
       cacheRead: pickNum(usage, ["inputCacheRead", "input_cache_read"]),
       cacheWrite: pickNum(usage, ["inputCacheCreation", "input_cache_creation"]),
     });
   }
-  return sessionFromRecords(file, undefined, records);
+  return sessionFromRecords(file, undefined, records, seen);
 }
 
 export async function loadKimiProjects(
@@ -48,10 +50,11 @@ export async function loadKimiProjects(
     );
   }
   const sessions: SessionStats[] = [];
+  const seen = new Set<string>();
   let parsed = 0;
   for (const f of files) {
     onProgress?.({ parsed, total: files.length, currentProject: "Kimi sessions" });
-    sessions.push(await parseFile(f));
+    sessions.push(await parseFile(f, seen));
     parsed += 1;
     onProgress?.({ parsed, total: files.length, currentProject: "Kimi sessions" });
   }
