@@ -305,7 +305,7 @@ function detectReplaySecond(content: string, lines: ParsedLine[]): string | unde
   let firstSecond: string | undefined;
   for (const p of lines) {
     if (p.type !== "event_msg" || p.payload?.type !== "token_count") continue;
-    const info = p.payload.info;
+    const info = asDict(p.payload.info);
     if (!info) continue;
     if (!asDict(info.last_token_usage) && !asDict(info.total_token_usage)) continue;
     const ts = p.timestamp;
@@ -361,7 +361,7 @@ export async function parseCodexRollout(
     let firstSecond: string | undefined;
     for (const p of lines) {
       if (p.type !== "event_msg" || p.payload?.type !== "token_count") continue;
-      const info = p.payload.info;
+      const info = asDict(p.payload.info);
       if (!info) continue;
       if (!asDict(info.last_token_usage) && !asDict(info.total_token_usage)) continue;
       const ts = p.timestamp;
