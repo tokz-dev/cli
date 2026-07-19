@@ -1,6 +1,6 @@
 {
   "name": "@tokz/cli",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "See where your coding agents' tokens and dollars actually go.",
   "keywords": [
     "claude",
