@@ -99,13 +99,33 @@ export function costUsd(usage: UsageTotals, modelId: string): CostBreakdown {
   const p = resolvePrice(modelId);
   const readMult = p.cacheReadMult ?? DEFAULT_CACHE_READ_MULT;
   const writeMult = p.cacheWriteMult ?? DEFAULT_CACHE_WRITE_MULT;
-  const input = (usage.inputTokens / 1e6) * p.inputPerMTok;
-  const cacheRead = (usage.cacheReadTokens / 1e6) * p.inputPerMTok * readMult;
+  
+  // Calculate regular tokens (total minus long context)
+  const regInputTokens = usage.inputTokens - (usage.longContextInputTokens ?? 0);
+  const regCacheReadTokens = usage.cacheReadTokens - (usage.longContextCacheReadTokens ?? 0);
+  const regOutputTokens = usage.outputTokens - (usage.longContextOutputTokens ?? 0);
+  
+  // Base rates
+  let input = (regInputTokens / 1e6) * p.inputPerMTok;
+  let cacheRead = (regCacheReadTokens / 1e6) * p.inputPerMTok * readMult;
+  let output = (regOutputTokens / 1e6) * p.outputPerMTok;
+
+  // Add long-context tier pricing (currently 2x input, 1.5x output)
+  if (usage.longContextInputTokens) {
+    input += (usage.longContextInputTokens / 1e6) * (p.inputPerMTok * 2);
+  }
+  if (usage.longContextCacheReadTokens) {
+    cacheRead += (usage.longContextCacheReadTokens / 1e6) * (p.inputPerMTok * 2) * readMult;
+  }
+  if (usage.longContextOutputTokens) {
+    output += (usage.longContextOutputTokens / 1e6) * (p.outputPerMTok * 1.5);
+  }
+
   const write1h = Math.min(usage.cacheCreation1hTokens ?? 0, usage.cacheCreationTokens);
   const write5m = usage.cacheCreationTokens - write1h;
   const write1hMult = p.cacheWrite1hMult ?? (p.cacheWriteMult === 0 ? 0 : CACHE_WRITE_1H_MULT);
   const cacheWrite =
     (write5m / 1e6) * p.inputPerMTok * writeMult + (write1h / 1e6) * p.inputPerMTok * write1hMult;
-  const output = (usage.outputTokens / 1e6) * p.outputPerMTok;
+    
   return { input, cacheRead, cacheWrite, output, total: input + cacheRead + cacheWrite + output };
 }

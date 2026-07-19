@@ -6,6 +6,11 @@ export interface UsageTotals {
   cacheCreation1hTokens?: number;
   outputTokens: number;
   turns: number;
+  
+  // Tracked separately for dynamic long-context pricing (e.g. requests > 272k tokens)
+  longContextInputTokens?: number;
+  longContextCacheReadTokens?: number;
+  longContextOutputTokens?: number;
 }
 
 export interface SessionStats {

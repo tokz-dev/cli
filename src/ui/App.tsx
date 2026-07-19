@@ -13,7 +13,7 @@ import { HelpOverlay } from "./HelpOverlay.js";
 export type View = "agents" | "menu" | "list" | "project" | "aggregate";
 
 const HINTS: Record<View, string> = {
-  agents: "↑↓ navigate · ⏎ select · ? help · q quit",
+  agents: "↑↓ navigate · ⏎ select · t timeframe · ? help · q quit",
   menu: "↑↓ navigate · ⏎ select · esc agents · ? help · q quit",
   list: "↑↓ move · ⏎ open · / filter · s sort · a all · esc back · ? help · q quit",
   project: "1–6 ←→ tabs · esc back · ? help · q quit",
@@ -81,10 +81,15 @@ export function App({
   const [help, setHelp] = useState(false);
   const [filterCapture, setFilterCapture] = useState(false);
   const [timeframe, setTimeframe] = useState<TimeframeId>("30d");
-  const scoped = useMemo(
-    () => applyTimeframe(activeProjects, timeframeRange(timeframe)),
-    [activeProjects, timeframe],
-  );
+  const scopedAgentList = useMemo(() => {
+    const tf = timeframeRange(timeframe);
+    return agentList.map((a) => ({
+      ...a,
+      projects: applyTimeframe(a.projects, tf),
+    }));
+  }, [agentList, timeframe]);
+
+  const scoped = scopedAgentList[agentIdx]?.projects ?? [];
   const totals = useMemo(() => aggregate(scoped), [scoped]);
   const activeAdapter = agentList[agentIdx]?.adapter;
   const agentName = activeAdapter ? activeAdapter.name + (activeAdapter.estimated ? " (estimated)" : "") : "";
@@ -98,7 +103,7 @@ export function App({
     if (filterCapture) return;
     if (input === "q") exit();
     if (input === "?") setHelp(true);
-    if (input === "t" && view !== "agents") setTimeframe((tf) => nextTimeframe(tf));
+    if (input === "t") setTimeframe((tf) => nextTimeframe(tf));
     if (key.escape) {
       if (view === "project") setView("list");
       else if (view === "aggregate") setView(aggFrom);
@@ -117,7 +122,7 @@ export function App({
   } else if (view === "agents") {
     content = (
       <AgentPicker
-        agents={agentList}
+        agents={scopedAgentList}
         onSelect={(i) => {
           setAgentIdx(i);
           setSelected(undefined);

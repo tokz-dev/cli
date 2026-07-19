@@ -108,6 +108,69 @@ describe("parseCodexRollout", () => {
     expect(b.usageByModel["gpt-5-codex"]).toBeUndefined();
   });
 
+  it("deduplicates forked session replays via cross-file seen set, not burst-skip", async () => {
+    // Without burst-skip, a forked session file contains the parent's replayed
+    // events + new turns.  When parsed in isolation (no shared `seen`), ALL
+    // events are counted.  When parsed after the parent with a shared `seen`
+    // set, the replayed duplicates are deduped by their identity key.
+    const tc = (ts: string, input: number, cached: number, output: number) =>
+      JSON.stringify({
+        timestamp: ts,
+        type: "event_msg",
+        payload: {
+          type: "token_count",
+          info: {
+            last_token_usage: {
+              input_tokens: input,
+              cached_input_tokens: cached,
+              output_tokens: output,
+              reasoning_output_tokens: 0,
+              total_tokens: input + output,
+            },
+          },
+        },
+      });
+    const meta = JSON.stringify({ type: "turn_context", payload: { model: "gpt-5-codex", cwd: "/home/me/api" } });
+    // Parent file: 2 events.
+    const parentContent = [
+      JSON.stringify({ type: "session_meta", payload: { cwd: "/home/me/api" } }),
+      meta,
+      tc("2026-07-10T10:00:00.100Z", 900_000, 700_000, 40_000),
+      tc("2026-07-10T10:00:00.400Z", 950_000, 720_000, 45_000),
+    ].join("\n");
+    // Forked file: replays the same 2 parent events, plus 1 new turn.
+    const forkContent = [
+      JSON.stringify({ type: "session_meta", payload: { cwd: "/home/me/api", thread_spawn: true } }),
+      meta,
+      tc("2026-07-10T10:00:00.100Z", 900_000, 700_000, 40_000),
+      tc("2026-07-10T10:00:00.400Z", 950_000, 720_000, 45_000),
+      tc("2026-07-10T10:05:00.000Z", 100_000, 60_000, 8_000),
+    ].join("\n");
+
+    const dir = mkdtempSync(join(tmpdir(), "tokz-cdxreplay-"));
+    const parentFile = join(dir, "parent.jsonl");
+    const forkFile = join(dir, "fork.jsonl");
+    writeFileSync(parentFile, parentContent);
+    writeFileSync(forkFile, forkContent);
+
+    // Parse both with a shared seen set — parent first, then fork.
+    const seen = new Set<string>();
+    const parent = await parseCodexRollout(parentFile, seen);
+    const fork = await parseCodexRollout(forkFile, seen);
+
+    // Parent sees both its events.
+    const pu = parent.usageByModel["gpt-5-codex"];
+    expect(pu.turns).toBe(2);
+
+    // Fork: the 2 replayed events are deduped (already in `seen`); only the
+    // new turn is counted.
+    const fu = fork.usageByModel["gpt-5-codex"];
+    expect(fu.inputTokens).toBe(40_000);
+    expect(fu.cacheReadTokens).toBe(60_000);
+    expect(fu.outputTokens).toBe(8_000);
+    expect(fu.turns).toBe(1);
+  });
+
   it("groups codex sessions into projects by cwd", async () => {
     const home = mkdtempSync(join(tmpdir(), "tokz-cdxhome-"));
     const day = join(home, ".codex", "sessions", "2026", "07", "10");

@@ -18,6 +18,9 @@ export function addUsage(acc: UsageTotals, u: UsageTotals): void {
   acc.cacheCreation1hTokens = (acc.cacheCreation1hTokens ?? 0) + (u.cacheCreation1hTokens ?? 0);
   acc.outputTokens += u.outputTokens;
   acc.turns += u.turns;
+  acc.longContextInputTokens = (acc.longContextInputTokens ?? 0) + (u.longContextInputTokens ?? 0);
+  acc.longContextCacheReadTokens = (acc.longContextCacheReadTokens ?? 0) + (u.longContextCacheReadTokens ?? 0);
+  acc.longContextOutputTokens = (acc.longContextOutputTokens ?? 0) + (u.longContextOutputTokens ?? 0);
 }
 
 /** What the cache reads would have cost at full input price, minus what they did cost. */
