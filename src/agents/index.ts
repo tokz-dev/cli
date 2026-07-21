@@ -74,6 +74,12 @@ export const ADAPTERS: AgentAdapter[] = [
   detectOnly("cursor", "Cursor", "no token counts stored locally — usage is server-side", [".cursor"]),
 ];
 
+/** Resolve a CLI target to an agent: by id ("codex") or display name ("claude code"). */
+export function findAdapter(target: string): AgentAdapter | undefined {
+  const key = target.trim().toLowerCase();
+  return ADAPTERS.find((a) => a.id === key || a.name.toLowerCase() === key);
+}
+
 export async function loadAllAgents(
   home?: string,
   onProgress?: (agent: string, p: LoadProgress) => void,

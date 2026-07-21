@@ -1,14 +1,63 @@
 import Table from "cli-table3";
 import pc from "picocolors";
+import type { Grouping } from "./dates.js";
 import { usd, tok, pct1 } from "./format.js";
 import type { AuditReport, DailyStat } from "./types.js";
 
-/** Activity table for daily stats already rolled up by week or month. */
-export function renderActivity(rows: DailyStat[], unit: "week" | "month"): string {
-  const head = unit === "week" ? "Week of" : "Month";
+const sumBy = <T,>(rows: T[], pick: (row: T) => number): number =>
+  rows.reduce((total, row) => total + pick(row), 0);
+
+const ACTIVITY_HEAD: Record<Grouping, string> = { day: "Day", week: "Week of", month: "Month" };
+
+export interface ActivityFlags {
+  daily?: boolean;
+  weekly?: boolean;
+  monthly?: boolean;
+  /** comma-separated units, or "none" to drop the activity table entirely */
+  breakdown?: string;
+}
+
+/**
+ * Which activity tables an audit should append. A day breakdown is the default;
+ * asking for any unit explicitly replaces it, and "--breakdown none" drops it.
+ * Result is always ordered coarse-to-fine, whatever order the flags came in.
+ */
+export function activityUnits(flags: ActivityFlags): Grouping[] {
+  const units = new Set<Grouping>();
+  let none = false;
+  if (flags.daily) units.add("day");
+  if (flags.weekly) units.add("week");
+  if (flags.monthly) units.add("month");
+  for (const raw of flags.breakdown?.split(",") ?? []) {
+    // Accept "daily"/"days"/"day" alike.
+    const unit = raw.trim().toLowerCase().replace(/(ly|s)$/, "");
+    if (unit === "day" || unit === "dai") units.add("day");
+    else if (unit === "week") units.add("week");
+    else if (unit === "month") units.add("month");
+    else if (unit === "none" || unit === "no") none = true;
+  }
+  if (none) return [];
+  if (units.size === 0) units.add("day");
+  return (["month", "week", "day"] as const).filter((u) => units.has(u));
+}
+
+/** Activity table for daily stats already rolled up by day, week, or month. */
+export function renderActivity(rows: DailyStat[], unit: Grouping): string {
+  const head = ACTIVITY_HEAD[unit];
   const table = new Table({ head: [head, "Cost", "Input", "Cache read", "Cache write", "Output", "Turns"] });
   for (const d of rows) {
     table.push([d.date, usd(d.costUsd), tok(d.inputTokens), tok(d.cacheReadTokens), tok(d.cacheCreationTokens), tok(d.outputTokens), String(d.turns)]);
+  }
+  if (rows.length > 1) {
+    table.push([
+      pc.bold("TOTAL"),
+      pc.bold(usd(sumBy(rows, (d) => d.costUsd))),
+      pc.bold(tok(sumBy(rows, (d) => d.inputTokens))),
+      pc.bold(tok(sumBy(rows, (d) => d.cacheReadTokens))),
+      pc.bold(tok(sumBy(rows, (d) => d.cacheCreationTokens))),
+      pc.bold(tok(sumBy(rows, (d) => d.outputTokens))),
+      pc.bold(String(sumBy(rows, (d) => d.turns))),
+    ]);
   }
   return `${pc.bold(`Activity by ${unit}`)}\n${table.toString()}`;
 }
@@ -37,9 +86,20 @@ export function renderReport(report: AuditReport): string {
   );
 
   const costTable = new Table({ head: ["Model", "Input", "Cache read", "Cache write", "Output", "Cost"] });
-  for (const [model, u] of Object.entries(report.usageByModel)) {
+  const models = Object.entries(report.usageByModel);
+  for (const [model, u] of models) {
     const c = report.costByModel[model];
     costTable.push([model, tok(u.inputTokens), tok(u.cacheReadTokens), tok(u.cacheCreationTokens), tok(u.outputTokens), usd(c.total)]);
+  }
+  if (models.length > 1) {
+    costTable.push([
+      pc.bold("TOTAL"),
+      pc.bold(tok(sumBy(models, ([, u]) => u.inputTokens))),
+      pc.bold(tok(sumBy(models, ([, u]) => u.cacheReadTokens))),
+      pc.bold(tok(sumBy(models, ([, u]) => u.cacheCreationTokens))),
+      pc.bold(tok(sumBy(models, ([, u]) => u.outputTokens))),
+      pc.bold(usd(report.totalCostUsd)),
+    ]);
   }
   parts.push(costTable.toString());
 
@@ -53,15 +113,28 @@ export function renderReport(report: AuditReport): string {
         s.source,
       ]);
     }
+    if (report.servers.length > 1) {
+      const unused = report.servers.filter((s) => s.unused).length;
+      serverTable.push([
+        pc.bold("TOTAL"),
+        pc.bold(String(sumBy(report.servers, (s) => s.callsObserved))),
+        pc.bold(`${report.servers.length} servers, ${unused} unused`),
+        "",
+      ]);
+    }
     parts.push(serverTable.toString());
   }
 
-  const topTools = Object.entries(report.toolCalls)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10);
+  const allTools = Object.entries(report.toolCalls).sort(([, a], [, b]) => b - a);
+  const topTools = allTools.slice(0, 10);
   if (topTools.length > 0) {
     const toolTable = new Table({ head: ["Tool", "Calls"] });
     for (const [name, n] of topTools) toolTable.push([name, String(n)]);
+    if (allTools.length > 1) {
+      // Totals cover every tool, not just the ten shown.
+      const label = allTools.length > topTools.length ? `TOTAL (${allTools.length} tools)` : "TOTAL";
+      toolTable.push([pc.bold(label), pc.bold(String(sumBy(allTools, ([, n]) => n)))]);
+    }
     parts.push(toolTable.toString());
   }
 

@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { Command } from "commander";
 
@@ -6,12 +7,14 @@ import { buildReport } from "./attribute.js";
 import { buildBlocks, type UsageEvent } from "./blocks.js";
 import { renderBlocksReport } from "./blocksReport.js";
 import { loadConfig } from "./config.js";
-import { groupDaily, parseDateArg, setTimezone, type Grouping } from "./dates.js";
+import { dayKey, groupDaily, parseDateArg, setTimezone, type Grouping } from "./dates.js";
 import { findTranscripts } from "./discover.js";
 import { initPricing } from "./livePricing.js";
 import { findMcpServers } from "./mcp.js";
-import { renderActivity, renderReport } from "./report.js";
-import { parseTranscript, type CountedUsage } from "./transcript.js";
+import { activityUnits, renderActivity, renderReport } from "./report.js";
+import { parseTranscriptContent, type CountedUsage } from "./transcript.js";
+import { ADAPTERS, findAdapter } from "./agents/index.js";
+import { aggregate, applyTimeframe } from "./projects.js";
 
 const program = new Command();
 
@@ -35,8 +38,14 @@ async function parseAll(projectPath?: string, events?: UsageEvent[]) {
   const transcripts = await findTranscripts(projectPath);
   const seenMessageIds = new Map<string, CountedUsage>();
   const seenToolIds = new Set<string>();
-  const sessions = await Promise.all(
-    transcripts.map((f) => parseTranscript(f, seenMessageIds, seenToolIds, events)),
+  // Read in parallel (I/O-bound) but parse in a fixed order: the dedup maps give
+  // a duplicated message to whichever session parses it first, so parsing in
+  // I/O-completion order would shuffle usage between sessions run to run.
+  const contents = await Promise.all(
+    transcripts.map((f) => readFile(f, "utf8").catch(() => "")),
+  );
+  const sessions = transcripts.map((f, i) =>
+    parseTranscriptContent(contents[i], f, seenMessageIds, seenToolIds, events),
   );
   return { transcripts, sessions };
 }
@@ -47,23 +56,78 @@ interface AuditOpts {
   days?: string;
   since?: string;
   until?: string;
+  daily?: boolean;
   weekly?: boolean;
   monthly?: boolean;
+  breakdown?: string;
 }
+
+const agentIds = () => ADAPTERS.map((a) => a.id).join(", ");
 
 program
   .command("audit")
-  .argument("[project]", "project path (default: current directory)")
+  .argument(
+    "[target]",
+    `agent id (${"claude, codex, opencode…"}) for that agent's whole usage, or a project path (default: current directory)`,
+  )
   .option("--all", "scan all projects under ~/.claude/projects")
   .option("--json", "output raw JSON report")
   .option("--days <n>", "only include the last N days of activity")
   .option("--since <date>", "start date, YYYY-MM-DD or YYYYMMDD (inclusive)")
   .option("--until <date>", "end date, YYYY-MM-DD or YYYYMMDD (inclusive)")
-  .option("--weekly", "append activity grouped by week")
-  .option("--monthly", "append activity grouped by month")
-  .action(async (project: string | undefined, opts: AuditOpts) => {
+  .option("--daily", "activity grouped by day (the default)")
+  .option("--weekly", "activity grouped by week instead of day")
+  .option("--monthly", "activity grouped by month instead of day")
+  .option("--breakdown <units>", 'comma-separated activity tables: "day", "week", "month", or "none"')
+  .addHelpText("after", `\nAgents: ${agentIds()}\n`)
+  .action(async (target: string | undefined, opts: AuditOpts) => {
     const globals = applyGlobals();
-    const projectPath = project ?? process.cwd();
+
+    // Date range is resolved the same way for both the Claude and agent paths.
+    const days = opts.days ? Number.parseInt(opts.days, 10) : config.days;
+    const isoDay = (offset: number) => dayKey(Date.now() - offset * 86_400_000);
+    const since = parseDateArg(opts.since);
+    const until = parseDateArg(opts.until);
+    let range: { from: string; to: string } | undefined;
+    if (since || until) range = { from: since ?? "0000-01-01", to: until ?? "9999-12-31" };
+    else if (days && days > 0) range = { from: isoDay(days - 1), to: isoDay(0) };
+
+    const emit = (report: ReturnType<typeof buildReport>) => {
+      if (opts.json) {
+        console.log(JSON.stringify(report, null, 2));
+        return;
+      }
+      const parts = [renderReport(report)];
+      for (const unit of activityUnits(opts)) {
+        parts.push(renderActivity(groupDaily(report.daily, unit), unit));
+      }
+      console.log(parts.join("\n\n"));
+    };
+
+    // A target naming a known agent audits that agent's whole usage across every
+    // project it recorded; anything else is treated as a project path.
+    const adapter = target ? findAdapter(target) : undefined;
+    if (adapter) {
+      if (!adapter.supported) {
+        console.error(`${adapter.name} can't be audited: ${adapter.unsupportedReason ?? "unsupported"}.`);
+        process.exitCode = 1;
+        return;
+      }
+      const [projects] = await Promise.all([adapter.loadProjects(), initPricing(globals)]);
+      if (projects.length === 0) {
+        console.error(`No ${adapter.name} usage data found on this machine.`);
+        process.exitCode = 1;
+        return;
+      }
+      // Same caveat the TUI carries: estimated agents aren't billed usage.
+      if (adapter.estimated && !opts.json) {
+        console.log(`${adapter.name} (estimated) — ${adapter.estimateNote ?? "numbers are estimates"}.\n`);
+      }
+      emit(aggregate(applyTimeframe(projects, range)));
+      return;
+    }
+
+    const projectPath = target ?? process.cwd();
     const [{ transcripts, sessions }] = await Promise.all([
       parseAll(opts.all ? undefined : projectPath),
       initPricing(globals),
@@ -74,24 +138,7 @@ program
       return;
     }
     const servers = opts.all ? [] : await findMcpServers(projectPath);
-
-    const days = opts.days ? Number.parseInt(opts.days, 10) : config.days;
-    const isoDay = (offset: number) => new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10);
-    const since = parseDateArg(opts.since);
-    const until = parseDateArg(opts.until);
-    let range: { from: string; to: string } | undefined;
-    if (since || until) range = { from: since ?? "0000-01-01", to: until ?? "9999-12-31" };
-    else if (days && days > 0) range = { from: isoDay(days - 1), to: isoDay(0) };
-
-    const report = buildReport(sessions, servers, range);
-    if (opts.json) {
-      console.log(JSON.stringify(report, null, 2));
-      return;
-    }
-    const parts = [renderReport(report)];
-    const grouping: Grouping | undefined = opts.monthly ? "month" : opts.weekly ? "week" : undefined;
-    if (grouping) parts.push(renderActivity(groupDaily(report.daily, grouping), grouping));
-    console.log(parts.join("\n\n"));
+    emit(buildReport(sessions, servers, range));
   });
 
 program

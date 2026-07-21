@@ -14,6 +14,7 @@ pricing refresh.
 npx @tokz/cli             # interactive TUI — pick an agent, browse projects, drill into charts
 npx @tokz/cli audit       # static report for the current project
 npx @tokz/cli audit --all # static report across every project on this machine
+npx @tokz/cli audit codex # everything one agent recorded (any id from the table below)
 npx @tokz/cli blocks      # Claude usage by rolling 5-hour billing window
 
 npm i -g @tokz/cli        # install the `tokz` command, then just: tokz
@@ -138,12 +139,33 @@ it can't parse. `--cost-source auto|cc|calc|both` picks the session-cost source:
 `($0.25 cc / $0.23 calc)`. The statusline reads only recently-touched
 transcripts and never fetches pricing, so it stays instant.
 
+## Auditing one agent
+
+`audit`'s argument takes either a project path or an agent id from the table
+above. An agent id reports everything that agent recorded on this machine,
+across every project — the same numbers the TUI shows for that agent.
+
+```bash
+tokz audit codex             # all Codex usage
+tokz audit opencode --days 7 # scoped to a range like any other audit
+tokz audit goose --json      # same report shape as the Claude audit
+```
+
+All the audit flags (`--days`, `--since`/`--until`, `--weekly`, `--monthly`,
+`--json`) work the same way. MCP-server analysis stays Claude-only, since the
+other agents don't record server configs. Agents whose numbers are estimated
+(Antigravity) say so above the report; detected-but-unparseable ones (Cursor)
+exit with the reason.
+
 ## Dates, ranges, timezones
 
 ```bash
 tokz audit --since 2026-07-01 --until 2026-07-15   # any inclusive range (also YYYYMMDD)
 tokz audit --days 7                                # last N days
-tokz audit --weekly      # or --monthly — appends an activity table by ISO week / month
+tokz audit               # activity by day is appended by default
+tokz audit --weekly      # or --monthly — group by that unit instead of day
+tokz audit --breakdown day,week,month              # stack several, coarse to fine
+tokz audit --breakdown none                        # report only, no activity table
 tokz --timezone local audit …                      # or any IANA zone; default UTC
 ```
 

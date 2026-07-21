@@ -202,6 +202,8 @@ export function buildReport(
     spanDays,
     spanStart: Number.isFinite(earliest) ? isoDate(earliest) : undefined,
     spanEnd: Number.isFinite(latest) ? isoDate(latest) : undefined,
+    spanStartMs: Number.isFinite(earliest) ? earliest : undefined,
+    spanEndMs: Number.isFinite(latest) ? latest : undefined,
     usageByModel,
     costByModel,
     totalCostUsd,

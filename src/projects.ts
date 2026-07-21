@@ -91,6 +91,10 @@ export function aggregate(projects: ProjectAudit[]): AuditReport {
   let totalTurns = 0;
   let start: string | undefined;
   let end: string | undefined;
+  // Kept in ms (not derived from the ISO dates) so spanDays matches what
+  // buildReport computes for the same sessions — dates alone lose time of day.
+  let startMs = Infinity;
+  let endMs = -Infinity;
 
   for (const { report } of projects) {
     sessionCount += report.sessionCount;
@@ -129,6 +133,8 @@ export function aggregate(projects: ProjectAudit[]): AuditReport {
     sessions.push(...(report.sessions ?? []));
     if (report.spanStart && (!start || report.spanStart < start)) start = report.spanStart;
     if (report.spanEnd && (!end || report.spanEnd > end)) end = report.spanEnd;
+    if (report.spanStartMs !== undefined) startMs = Math.min(startMs, report.spanStartMs);
+    if (report.spanEndMs !== undefined) endMs = Math.max(endMs, report.spanEndMs);
   }
 
   const costByModel: Record<string, CostBreakdown> = {};
@@ -138,14 +144,20 @@ export function aggregate(projects: ProjectAudit[]): AuditReport {
     totalCostUsd += costByModel[m].total;
   }
 
-  const spanDays =
-    start && end ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / DAY_MS)) : 1;
+  const haveMs = Number.isFinite(startMs) && Number.isFinite(endMs);
+  const spanDays = haveMs
+    ? Math.max(1, Math.round((endMs - startMs) / DAY_MS))
+    : start && end
+      ? Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / DAY_MS))
+      : 1;
 
   return {
     sessionCount,
     spanDays,
     spanStart: start,
     spanEnd: end,
+    spanStartMs: haveMs ? startMs : undefined,
+    spanEndMs: haveMs ? endMs : undefined,
     usageByModel,
     costByModel,
     totalCostUsd,

@@ -77,6 +77,9 @@ export interface AuditReport {
   spanDays: number;
   spanStart?: string; // ISO date (YYYY-MM-DD) of earliest activity
   spanEnd?: string; // ISO date (YYYY-MM-DD) of latest activity
+  /** exact ms timestamps behind spanStart/spanEnd, so aggregating reports keeps sub-day precision */
+  spanStartMs?: number;
+  spanEndMs?: number;
   usageByModel: Record<string, UsageTotals>;
   costByModel: Record<string, CostBreakdown>;
   totalCostUsd: number;
